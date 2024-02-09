@@ -1,0 +1,16 @@
+package main
+
+import (
+	"backend/internal/initializers"
+	"backend/internal/models"
+)
+
+func init() {
+	initializers.LoadEnvVariables()
+	initializers.ConnectDatabase()
+}
+
+func main() {
+	initializers.DB.AutoMigrate(&models.User{})
+	initializers.DB.AutoMigrate(&models.UserEmailVerification{})
+}
