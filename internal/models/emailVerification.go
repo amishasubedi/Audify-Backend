@@ -6,8 +6,7 @@ import (
 
 type UserEmailVerification struct {
 	VerificationID uint      `gorm:"primaryKey"`
-	UserID         uint      `gorm:"not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Token          string    `gorm:"not null"`
+	Token          string    `gorm:"column:token_hash;not null"`
 	CreatedAt      time.Time `gorm:"default:current_timestamp"`
-	User           User      `gorm:"foreignKey:UserID"`
+	UserID         uint      `gorm:"foreignKey:UserID"`
 }

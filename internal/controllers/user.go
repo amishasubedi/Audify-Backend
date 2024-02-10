@@ -46,17 +46,19 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
+	// generate token
 	token := utils.GenerateToken(6)
-	//token_hash := models.HashPassword(token)
+	token_hashed := models.HashPassword(token)
 
-	emailVerification := models.UserEmailVerification{
+	// create email verification record on database
+	verificationRecord := models.UserEmailVerification{
 		UserID:    newUser.ID,
-		Token:     token,
+		Token:     token_hashed,
 		CreatedAt: time.Now(),
 	}
 
-	if err := initializers.DB.Create(&emailVerification).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create email verification record"})
+	if result := initializers.DB.Create(&verificationRecord); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
@@ -66,8 +68,9 @@ func CreateUser(c *gin.Context) {
 		Email:  newUser.Email,
 		UserID: fmt.Sprintf("%d", newUser.ID),
 	}
-	utils.SendVerificationMail(token, profile)
 
+	// send verification email
+	utils.SendVerificationMail(token, profile)
 	c.JSON(http.StatusOK, gin.H{"data": newUser})
 }
 
