@@ -6,8 +6,10 @@ import (
 	"backend/internal/utils"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 	"gorm.io/gorm"
@@ -179,4 +181,59 @@ func ReVerifyEmail(c *gin.Context) {
 	utils.SendVerificationMail(token, profile)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
+}
+
+/**
+ * Sign in user
+ */
+func Signin(c *gin.Context) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var user models.User
+	result := initializers.DB.Where("email = ?", req.Email).First(&user)
+	if result.Error != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
+		return
+	}
+
+	if !models.CheckPasswordHash(req.Password, user.Password) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid Password"})
+		return
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userId": user.ID,
+		"exp":    time.Now().Add(time.Hour * 72).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign the token"})
+		return
+	}
+
+	// Update user's tokens
+	user.Tokens = append(user.Tokens, tokenString)
+	initializers.DB.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{
+		"profile": gin.H{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"verified":  user.Verified,
+			"avatar":    user.AvatarURL,
+			"followers": len(user.Followers),
+			"following": len(user.Followings),
+		},
+		"token": tokenString,
+	})
 }
