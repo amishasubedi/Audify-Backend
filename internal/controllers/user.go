@@ -131,3 +131,52 @@ func VerifyEmail(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Your email is verified"})
 }
+
+/**
+ * This method resends a verification token to the user's email.
+ */
+func ReVerifyEmail(c *gin.Context) {
+	var req models.ReVerifyEmail
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var user models.User
+
+	// find userid in email verification associated with req bpdy
+	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
+	//fmt.Println("User Info: ", verificationID)
+	if result.Error == gorm.ErrRecordNotFound {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid User"})
+		return
+	}
+
+	// generate new token
+	token := utils.GenerateToken(6)
+	token_hashed := models.HashPassword(token)
+
+	// create email verification record on database
+	verificationRecord := models.UserEmailVerification{
+		UserID:    user.ID,
+		Token:     token_hashed,
+		CreatedAt: time.Now(),
+	}
+
+	if result := initializers.DB.Create(&verificationRecord); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+
+	profile := utils.Profile{
+		Name:   user.Name,
+		Email:  user.Email,
+		UserID: fmt.Sprintf("%d", user.ID),
+	}
+
+	// send verification email
+	utils.SendVerificationMail(token, profile)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
+}

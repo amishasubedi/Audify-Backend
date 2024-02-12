@@ -18,6 +18,10 @@ type VerifyEmail struct {
 	UserID uint   `gorm:"foreignKey:UserID"`
 }
 
+type ReVerifyEmail struct {
+	UserID uint `gorm:"foreignKey:UserID"`
+}
+
 // CompareToken compares a plaintext token against a hashed token.
 func CompareToken(hashedToken, token string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedToken), []byte(token))
