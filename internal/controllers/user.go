@@ -89,7 +89,7 @@ func GetAllUsers(c *gin.Context) {
 }
 
 /*
-* This method verifies a user's email using provided token
+* This method verifies a user's email using provided token.
  */
 
 func VerifyEmail(c *gin.Context) {
@@ -221,18 +221,21 @@ func Signin(c *gin.Context) {
 	}
 
 	// Update user's tokens
-	user.Tokens = append(user.Tokens, tokenString)
-	initializers.DB.Save(&user)
+	user.Tokens = append(user.Tokens, tokenString) // not appending ?
 
+	output := initializers.DB.Save(&user)
+	if output.Error != nil {
+		fmt.Println("Error saving user to database:", result.Error)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
-			"id":        user.ID,
-			"name":      user.Name,
-			"email":     user.Email,
-			"verified":  user.Verified,
-			"avatar":    user.AvatarURL,
-			"followers": len(user.Followers),
-			"following": len(user.Followings),
+			"id":         user.ID,
+			"name":       user.Name,
+			"email":      user.Email,
+			"verified":   user.Verified,
+			"avatar":     user.AvatarURL,
+			"followers":  len(user.Followers),
+			"followings": len(user.Followings),
 		},
 		"token": tokenString,
 	})
