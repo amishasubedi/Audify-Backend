@@ -11,5 +11,7 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.POST("/verify", controllers.VerifyEmail)
 	router.POST("/re-verify", controllers.ReVerifyEmail)
 	router.POST("/sign-in", controllers.Signin)
+	router.POST("/password-reset", controllers.GeneratePasswordLink)
+
 	router.GET("/", controllers.GetAllUsers)
 }

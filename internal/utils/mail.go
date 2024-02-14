@@ -22,6 +22,9 @@ func generateMailDialer() *gomail.Dialer {
 	)
 }
 
+/*
+* This method sends veirifcation token to user's email to verify their account
+ */
 func SendVerificationMail(token string, profile Profile) {
 	d := generateMailDialer()
 	m := gomail.NewMessage()
@@ -38,4 +41,31 @@ func SendVerificationMail(token string, profile Profile) {
 	} else {
 		fmt.Println("Email sent to:", profile.Email)
 	}
+}
+
+type Option struct {
+	Email string
+	Link  string
+}
+
+/*
+* This method sends password reset link to user's email
+ */
+func SendForgetPasswordLink(option Option) {
+	d := generateMailDialer()
+	m := gomail.NewMessage()
+
+	m.SetHeader("From", "auth@myapp.com")
+	m.SetHeader("To", option.Email)
+	m.SetHeader("Subject", "Reset Password Link")
+
+	htmlContent := fmt.Sprintf(`<p>We just received a request that you forgot your password, use the link below to create a new password: %s </p>`, option.Link)
+	m.SetBody("text/html", htmlContent)
+
+	if err := d.DialAndSend(m); err != nil {
+		fmt.Printf("Failed to send email: %v\n", err)
+	} else {
+		fmt.Println("Email sent to:", option.Email)
+	}
+
 }

@@ -149,7 +149,6 @@ func ReVerifyEmail(c *gin.Context) {
 
 	// find userid in email verification associated with req bpdy
 	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
-	//fmt.Println("User Info: ", verificationID)
 	if result.Error == gorm.ErrRecordNotFound {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid User"})
 		return
@@ -239,4 +238,77 @@ func Signin(c *gin.Context) {
 		},
 		"token": tokenString,
 	})
+}
+
+/*
+* Logout authenticated user
+ */
+func Signout(c *gin.Context) {
+
+}
+
+/*
+*
+ */
+func GeneratePasswordLink(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// find user associated with that email
+	var user models.User
+	result := initializers.DB.Where("email = ?", req.Email).First(&user)
+	if result.Error != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "User with that email not found"})
+		return
+	}
+
+	//var passwordSchema models.UserPasswordReset
+
+	// delete that users info from passwordResetSchema only if it exists
+	// output := initializers.DB.Where("email = ?", user.Email).First(&passwordSchema)
+	// if output.Error != nil {
+	// 	c.JSON(http.StatusForbidden, gin.H{"error": "User not found 1"})
+	// }
+
+	// deleteResult := initializers.DB.Delete(&passwordSchema)
+	// if deleteResult.Error != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete verification token"})
+	// 	return
+	// }
+
+	// generate token
+	token := utils.GenerateRandomHexString(36)
+
+	// create new passwordReset with that token
+	passwordRecord := models.UserPasswordReset{
+		UserID:    user.ID,
+		Token:     token,
+		CreatedAt: time.Now(),
+	}
+
+	if result := initializers.DB.Create(&passwordRecord); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+
+	// generate resetLink
+	link := os.Getenv("PASSWORD_RESET_LINK")
+	resetLink := fmt.Sprintf("%s?token=%s&userId=%d", link, token, user.ID)
+
+	option := utils.Option{
+		Email: user.Email,
+		Link:  resetLink,
+	}
+
+	// send that link to users email
+	utils.SendForgetPasswordLink(option)
+
+	// Ask user to check their email
+	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
 }

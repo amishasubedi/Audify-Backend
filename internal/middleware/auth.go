@@ -34,7 +34,6 @@ func isAuthenticated(c *gin.Context) {
 	})
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
-		// Assuming `FindUserByIdAndToken` is a function that you've implemented to fetch user from DB
 		user, err := FindUserByIdAndToken(claims.UserID, tokenString)
 		if err != nil || user == nil {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
@@ -42,7 +41,6 @@ func isAuthenticated(c *gin.Context) {
 			return
 		}
 
-		// Adding user info to Gin context
 		c.Set("user", user)
 	} else {
 		fmt.Println(err)
