@@ -248,7 +248,7 @@ func Signout(c *gin.Context) {
 }
 
 /*
-*
+* This method generates reset password link and send that link to user's email.
  */
 func GeneratePasswordLink(c *gin.Context) {
 	var req struct {
@@ -309,6 +309,61 @@ func GeneratePasswordLink(c *gin.Context) {
 	// send that link to users email
 	utils.SendForgetPasswordLink(option)
 
-	// Ask user to check their email
 	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
+}
+
+/*
+* This method verifies if the reset token entered by user is valid
+ */
+func IsValidResetToken(c *gin.Context) {
+	// pass token and userid in the request body
+	var req struct {
+		UserID uint
+		Token  string
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// find that reset token info using the user id from request body, handle error if not found
+	var resetToken models.UserPasswordReset
+
+	result := initializers.DB.Where("user_id = ?", req.UserID).First(&resetToken)
+	if result.Error != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Reset Token not found"})
+		return
+	}
+
+	// check if the token passed and token stores matches
+	matched, err := models.CompareToken(req.Token, resetToken.Token)
+
+	if err != nil || !matched {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid Token"})
+		return
+	}
+
+	// if it matches, say your token is valid
+	c.JSON(http.StatusOK, gin.H{"message": "Your token is valid"})
+}
+
+func UpdatePassword(c *gin.Context) {
+	// pass user id and password in request body
+
+	// find that user in user, handle error
+
+	// compare password - if same - error - "new pwd should be different"
+
+	// set users password to password passed in requets body
+
+	// save that in db
+
+	// delete info of tokens in passwordReset Schema
+
+	// say passowrd change successfully
+}
+
+func UpdateProfile(c *gin.Context) {
+	// file storage ?
 }

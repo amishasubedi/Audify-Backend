@@ -12,6 +12,7 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.POST("/re-verify", controllers.ReVerifyEmail)
 	router.POST("/sign-in", controllers.Signin)
 	router.POST("/password-reset", controllers.GeneratePasswordLink)
+	router.POST("/is-valid-token", controllers.IsValidResetToken)
 
 	router.GET("/", controllers.GetAllUsers)
 }
