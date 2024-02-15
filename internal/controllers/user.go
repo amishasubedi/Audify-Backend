@@ -244,7 +244,34 @@ func Signin(c *gin.Context) {
 * Logout authenticated user
  */
 func Signout(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	token := c.MustGet("token").(string)
+	fromAll := c.Query("fromAll")
 
+	if fromAll == "yes" {
+		initializers.DB.Model(&models.User{}).Where("id = ?", userID).Update("tokens", []string{})
+	} else {
+		var user models.User
+		if err := initializers.DB.First(&user, userID).Error; err == nil {
+			newTokens := []string{}
+			for _, t := range user.Tokens {
+				if t != token {
+					newTokens = append(newTokens, t)
+				}
+			}
+			initializers.DB.Model(&user).Update("tokens", newTokens)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func SendProfile(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"profile": user})
 }
 
 /*
@@ -336,6 +363,9 @@ func IsValidResetToken(c *gin.Context) {
 		return
 	}
 
+	fmt.Print("Request body token", req.Token)
+	fmt.Print("Database TOken", resetToken.Token)
+
 	// check if the token passed and token stores matches
 	matched, err := models.CompareToken(req.Token, resetToken.Token)
 
@@ -350,20 +380,95 @@ func IsValidResetToken(c *gin.Context) {
 
 func UpdatePassword(c *gin.Context) {
 	// pass user id and password in request body
+	var req struct {
+		UserID   uint
+		Password string
+	}
 
-	// find that user in user, handle error
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
 
-	// compare password - if same - error - "new pwd should be different"
+	// find that user in the database, handle error
+	var user models.User
 
-	// set users password to password passed in requets body
+	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
+	if result.Error != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
+		return
+	}
 
-	// save that in db
+	// Check if new password is different from the old password
+	matched := models.CheckPasswordHash(req.Password, user.Password)
+	if matched {
+		c.JSON(http.StatusForbidden, gin.H{"error": "The new password should be different"})
+		return
+	}
 
-	// delete info of tokens in passwordReset Schema
+	hashedPassword := models.HashPassword(req.Password)
 
-	// say passowrd change successfully
+	user.Password = hashedPassword
+
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	var reset models.UserPasswordReset
+	if err := initializers.DB.Where("user_id = ?", req.UserID).Delete(&reset).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete verification token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
 func UpdateProfile(c *gin.Context) {
-	// file storage ?
+	userID := c.Param("userID")
+
+	// Initialize Cloudinary
+	cld := utils.CloudSetup()
+
+	// Bind name from form value
+	name := c.PostForm("name")
+	if name == "" || len(name) < 3 {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Name must be at least 3 characters long"})
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error, user not found"})
+		return
+	}
+
+	user.Name = name
+
+	// Process avatar file if exists
+	file, err := c.FormFile("avatar")
+	if err == nil && file != nil {
+		tempFilePath := fmt.Sprintf("/tmp/%s", file.Filename)
+		if err := c.SaveUploadedFile(file, tempFilePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded file"})
+			return
+		}
+
+		// Upload the file to Cloudinary
+		url, err := utils.UploadFileToCloudinary(cld, tempFilePath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar to Cloudinary"})
+			return
+		}
+
+		user.AvatarURL = url
+	}
+
+	// Save the updated user info to the database
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "user": user})
 }

@@ -19,7 +19,7 @@ type CustomClaims struct {
 }
 
 // isAuthenticated middleware in Go
-func isAuthenticated(c *gin.Context) {
+func IsAuthenticated(c *gin.Context) {
 	authorization := c.GetHeader("Authorization")
 	if authorization == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access!"})
