@@ -25,6 +25,6 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.POST("/update-password", controllers.UpdatePassword)
 
 	// profile management route
-	router.POST("/update-profile", controllers.UpdateProfile)
+	router.POST("/update-profile", middleware.IsAuthenticated, middleware.FileParser(), controllers.UpdateProfile)
 	router.GET("/", controllers.GetAllUsers)
 }

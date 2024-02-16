@@ -9,7 +9,7 @@ import (
 /*
 * This method parse the incoming file from request body
  */
-func FileParserMiddleware() gin.HandlerFunc {
+func FileParser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if contentType := c.GetHeader("Content-Type"); contentType != "" {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Only accepts form data"})

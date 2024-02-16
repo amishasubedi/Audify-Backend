@@ -176,14 +176,14 @@ func Signin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
-		c.Error(result.Error)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
 		return
 	}
 
@@ -199,16 +199,18 @@ func Signin(c *gin.Context) {
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign the token"})
 		return
 	}
 
-	user.Tokens = append(user.Tokens, tokenString)
+	user.Tokens = append(user.Tokens, tokenString) // it is not appending
 
-	output := initializers.DB.Save(&user)
-	if output.Error != nil {
-		c.Error(err)
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		fmt.Printf("Error saving user to database: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update user tokens"})
+		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
 			"id":         user.ID,
@@ -381,7 +383,6 @@ func UpdatePassword(c *gin.Context) {
 		return
 	}
 
-	// Check if new password is different from the old password
 	matched := models.CheckPasswordHash(req.Password, user.Password)
 	if matched {
 		c.JSON(http.StatusForbidden, gin.H{"error": "The new password should be different"})
@@ -409,10 +410,8 @@ func UpdatePassword(c *gin.Context) {
 func UpdateProfile(c *gin.Context) {
 	userID := c.Param("userID")
 
-	// Initialize Cloudinary
 	cld := utils.CloudSetup()
 
-	// Bind name from form value
 	name := c.PostForm("name")
 	if name == "" || len(name) < 3 {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Name must be at least 3 characters long"})
@@ -444,7 +443,6 @@ func UpdateProfile(c *gin.Context) {
 		user.AvatarURL = url
 	}
 
-	// Save the updated user info to the database
 	if err := initializers.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
 		return
