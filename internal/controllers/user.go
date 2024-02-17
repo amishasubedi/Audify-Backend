@@ -4,6 +4,7 @@ import (
 	"backend/internal/initializers"
 	"backend/internal/models"
 	"backend/internal/utils"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -81,7 +82,6 @@ func GetAllUsers(c *gin.Context) {
 /*
 * This method verifies a user's email using provided token.
  */
-
 func VerifyEmail(c *gin.Context) {
 	var req models.VerifyEmail
 
@@ -183,7 +183,7 @@ func Signin(c *gin.Context) {
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
 	}
 
@@ -203,10 +203,14 @@ func Signin(c *gin.Context) {
 		return
 	}
 
-	user.Tokens = append(user.Tokens, tokenString) // it is not appending
+	tokensJSON, err := json.Marshal(append(user.Tokens, tokenString)) // multiple sign in token not appended
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process tokens"})
+		return
+	}
 
-	if err := initializers.DB.Save(&user).Error; err != nil {
-		fmt.Printf("Error saving user to database: %v\n", err)
+	if err := initializers.DB.Model(&user).Update("tokens", tokensJSON).Error; err != nil {
+		fmt.Printf("Error updating user tokens in database: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update user tokens"})
 		return
 	}
@@ -218,6 +222,7 @@ func Signin(c *gin.Context) {
 			"email":      user.Email,
 			"verified":   user.Verified,
 			"avatar":     user.AvatarURL,
+			"tokens":     len(user.Tokens),
 			"followers":  len(user.Followers),
 			"followings": len(user.Followings),
 		},
