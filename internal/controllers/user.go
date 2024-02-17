@@ -415,45 +415,5 @@ func UpdatePassword(c *gin.Context) {
 }
 
 func UpdateProfile(c *gin.Context) {
-	userID := c.Param("userID")
 
-	cld := utils.CloudSetup()
-
-	name := c.PostForm("name")
-	if name == "" || len(name) < 3 {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Name must be at least 3 characters long"})
-		return
-	}
-
-	var user models.User
-	if err := initializers.DB.First(&user, "id = ?", userID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error, user not found"})
-		return
-	}
-
-	user.Name = name
-
-	file, err := c.FormFile("avatar")
-	if err == nil && file != nil {
-		tempFilePath := fmt.Sprintf("/tmp/%s", file.Filename)
-		if err := c.SaveUploadedFile(file, tempFilePath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded file"})
-			return
-		}
-
-		url, err := utils.UploadFileToCloudinary(cld, tempFilePath)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar to Cloudinary"})
-			return
-		}
-
-		user.AvatarURL = url
-	}
-
-	if err := initializers.DB.Save(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "user": user})
 }
