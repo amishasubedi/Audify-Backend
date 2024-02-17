@@ -4,7 +4,9 @@ import (
 	"backend/internal/initializers"
 	"backend/internal/models"
 	"backend/internal/utils"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -29,105 +31,89 @@ func CreateUser(c *gin.Context) {
 	var newUser models.User
 
 	if err := c.BindJSON(&newUser); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	validationErr := Validate.Struct(newUser)
-
-	if validationErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+	if validationErr := Validate.Struct(newUser); validationErr != nil {
+		c.Error(validationErr)
 		return
 	}
 
-	password := models.HashPassword(newUser.Password)
-	newUser.Password = password
+	newUser.Password = models.HashPassword(newUser.Password)
 
-	result := initializers.DB.Create(&newUser)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	if result := initializers.DB.Create(&newUser); result.Error != nil {
+		c.Error(result.Error)
 		return
 	}
 
-	// generate token
 	token := utils.GenerateToken(6)
-	token_hashed := models.HashPassword(token)
-
-	// create email verification record on database
 	verificationRecord := models.UserEmailVerification{
 		UserID:    newUser.ID,
-		Token:     token_hashed,
+		Token:     models.HashPassword(token),
 		CreatedAt: time.Now(),
 	}
 
 	if result := initializers.DB.Create(&verificationRecord); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		c.Error(result.Error)
 		return
 	}
 
-	profile := utils.Profile{
-		Name:   newUser.Name,
-		Email:  newUser.Email,
-		UserID: fmt.Sprintf("%d", newUser.ID),
+	profile := utils.Profile{Name: newUser.Name, Email: newUser.Email, UserID: fmt.Sprintf("%d", newUser.ID)}
+	if err := utils.SendVerificationMail(token, profile); err != nil {
+		log.Printf("Error sending verification mail: %v", err)
 	}
 
-	// send verification email
-	utils.SendVerificationMail(token, profile)
 	c.JSON(http.StatusOK, gin.H{"data": newUser})
 }
 
+/*
+* This method fetches and returns all registered users.
+ */
 func GetAllUsers(c *gin.Context) {
 	var users []models.User
-	result := initializers.DB.Find(&users)
-
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	if result := initializers.DB.Find(&users); result.Error != nil {
+		c.Error(result.Error)
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 /*
 * This method verifies a user's email using provided token.
  */
-
 func VerifyEmail(c *gin.Context) {
 	var req models.VerifyEmail
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(err)
 		return
 	}
 
 	var verificationToken models.UserEmailVerification
-
-	// find userid in email verification associated with req bpdy
 	result := initializers.DB.Where("user_id = ?", req.UserID).First(&verificationToken)
 	if result.Error == gorm.ErrRecordNotFound {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Token not found"})
+		c.Error(result.Error)
+	}
+
+	if matched, err := models.CompareToken(verificationToken.Token, req.Token); err != nil || !matched {
+		if err == nil {
+			err = fmt.Errorf("token mismatch")
+		}
+		c.Error(err)
 		return
 	}
 
-	// check if the req body token and token stored in database are same
-	matched, err := models.CompareToken(verificationToken.Token, req.Token)
-	if err != nil || !matched {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid Token"})
-		return
-	}
-
-	// if it matches, find the user by id and update verify to true in users table
 	var user models.User
 	updateResult := initializers.DB.Model(&user).Where("id = ?", verificationToken.UserID).Update("verified", true)
 	if updateResult.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user verification status"})
+		c.Error(updateResult.Error)
 		return
 	}
 
-	// Delete the verification token
 	deleteResult := initializers.DB.Delete(&verificationToken)
 	if deleteResult.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete verification token"})
+		c.Error(deleteResult.Error)
 		return
 	}
 
@@ -141,24 +127,20 @@ func ReVerifyEmail(c *gin.Context) {
 	var req models.ReVerifyEmail
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(err)
 		return
 	}
 
 	var user models.User
-
-	// find userid in email verification associated with req bpdy
 	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
 	if result.Error == gorm.ErrRecordNotFound {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid User"})
+		c.Error(result.Error)
 		return
 	}
 
-	// generate new token
 	token := utils.GenerateToken(6)
 	token_hashed := models.HashPassword(token)
 
-	// create email verification record on database
 	verificationRecord := models.UserEmailVerification{
 		UserID:    user.ID,
 		Token:     token_hashed,
@@ -166,7 +148,7 @@ func ReVerifyEmail(c *gin.Context) {
 	}
 
 	if result := initializers.DB.Create(&verificationRecord); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		c.Error(result.Error)
 		return
 	}
 
@@ -176,8 +158,10 @@ func ReVerifyEmail(c *gin.Context) {
 		UserID: fmt.Sprintf("%d", user.ID),
 	}
 
-	// send verification email
-	utils.SendVerificationMail(token, profile)
+	if err := utils.SendVerificationMail(token, profile); err != nil {
+		log.Printf("Error sending verification mail: %v", err)
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
 }
@@ -199,7 +183,7 @@ func Signin(c *gin.Context) {
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
 	}
 
@@ -219,13 +203,18 @@ func Signin(c *gin.Context) {
 		return
 	}
 
-	// Update user's tokens
-	user.Tokens = append(user.Tokens, tokenString) // not appending ?
-
-	output := initializers.DB.Save(&user)
-	if output.Error != nil {
-		fmt.Println("Error saving user to database:", result.Error)
+	tokensJSON, err := json.Marshal(append(user.Tokens, tokenString)) // multiple sign in token not appended
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process tokens"})
+		return
 	}
+
+	if err := initializers.DB.Model(&user).Update("tokens", tokensJSON).Error; err != nil {
+		fmt.Printf("Error updating user tokens in database: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update user tokens"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
 			"id":         user.ID,
@@ -233,6 +222,7 @@ func Signin(c *gin.Context) {
 			"email":      user.Email,
 			"verified":   user.Verified,
 			"avatar":     user.AvatarURL,
+			"tokens":     len(user.Tokens),
 			"followers":  len(user.Followers),
 			"followings": len(user.Followings),
 		},
@@ -283,15 +273,14 @@ func GeneratePasswordLink(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(err)
 		return
 	}
 
-	// find user associated with that email
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User with that email not found"})
+		c.Error(result.Error)
 		return
 	}
 
@@ -320,7 +309,7 @@ func GeneratePasswordLink(c *gin.Context) {
 	}
 
 	if result := initializers.DB.Create(&passwordRecord); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		c.Error(result.Error)
 		return
 	}
 
@@ -399,7 +388,6 @@ func UpdatePassword(c *gin.Context) {
 		return
 	}
 
-	// Check if new password is different from the old password
 	matched := models.CheckPasswordHash(req.Password, user.Password)
 	if matched {
 		c.JSON(http.StatusForbidden, gin.H{"error": "The new password should be different"})
@@ -427,10 +415,8 @@ func UpdatePassword(c *gin.Context) {
 func UpdateProfile(c *gin.Context) {
 	userID := c.Param("userID")
 
-	// Initialize Cloudinary
 	cld := utils.CloudSetup()
 
-	// Bind name from form value
 	name := c.PostForm("name")
 	if name == "" || len(name) < 3 {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Name must be at least 3 characters long"})
@@ -445,7 +431,6 @@ func UpdateProfile(c *gin.Context) {
 
 	user.Name = name
 
-	// Process avatar file if exists
 	file, err := c.FormFile("avatar")
 	if err == nil && file != nil {
 		tempFilePath := fmt.Sprintf("/tmp/%s", file.Filename)
@@ -454,7 +439,6 @@ func UpdateProfile(c *gin.Context) {
 			return
 		}
 
-		// Upload the file to Cloudinary
 		url, err := utils.UploadFileToCloudinary(cld, tempFilePath)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar to Cloudinary"})
@@ -464,7 +448,6 @@ func UpdateProfile(c *gin.Context) {
 		user.AvatarURL = url
 	}
 
-	// Save the updated user info to the database
 	if err := initializers.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
 		return

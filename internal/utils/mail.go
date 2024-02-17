@@ -25,7 +25,7 @@ func generateMailDialer() *gomail.Dialer {
 /*
 * This method sends veirifcation token to user's email to verify their account
  */
-func SendVerificationMail(token string, profile Profile) {
+func SendVerificationMail(token string, profile Profile) error {
 	d := generateMailDialer()
 	m := gomail.NewMessage()
 
@@ -38,9 +38,11 @@ func SendVerificationMail(token string, profile Profile) {
 
 	if err := d.DialAndSend(m); err != nil {
 		fmt.Printf("Failed to send email: %v\n", err)
-	} else {
-		fmt.Println("Email sent to:", profile.Email)
+		return err
 	}
+
+	fmt.Println("Email sent to:", profile.Email)
+	return nil
 }
 
 type Option struct {
