@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -369,6 +370,9 @@ func IsValidResetToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Your token is valid"})
 }
 
+/*
+* This method updates users password
+ */
 func UpdatePassword(c *gin.Context) {
 	// pass user id and password in request body
 	var req struct {
@@ -414,6 +418,51 @@ func UpdatePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
+/*
+* This method handles image uploading and saving in cloud, and also updating profile
+ */
 func UpdateProfile(c *gin.Context) {
+	user, exists := c.Get("user")
+
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	fmt.Println("User ID is", userModel.ID)
+
+	name := c.PostForm("name")
+	if name != "" {
+		if len(name) < 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid name, must be at least 3 characters long"})
+			return
+		}
+		userModel.Name = name
+	}
+
+	if file, exists := c.Get("file"); exists {
+		filePath, _ := c.Get("filePath")
+		imageUrl, public_id, err := utils.UploadToCloudinary(file.(multipart.File), filePath.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar"})
+			return
+		}
+		userModel.AvatarURL = imageUrl
+		userModel.AvatarPublicID = public_id
+	}
+
+	if err := initializers.DB.Save(&userModel).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "user": userModel})
 
 }
