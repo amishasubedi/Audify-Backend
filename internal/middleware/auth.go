@@ -12,15 +12,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Custom JWT claims struct
+/*
+* Custom JWT Claim Struct
+ */
 type CustomClaims struct {
-	UserID string `json:"userId"`
+	UserID uint `json:"userId"`
 	jwt.StandardClaims
 }
 
-// isAuthenticated middleware in Go
+/*
+* This method extracts the token from authorization header, and validate the token
+ */
 func IsAuthenticated(c *gin.Context) {
 	authorization := c.GetHeader("Authorization")
+
 	if authorization == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access!"})
 		c.Abort()
@@ -36,7 +41,7 @@ func IsAuthenticated(c *gin.Context) {
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		user, err := FindUserByIdAndToken(claims.UserID, tokenString)
 		if err != nil || user == nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access here"})
 			c.Abort()
 			return
 		}
@@ -52,9 +57,10 @@ func IsAuthenticated(c *gin.Context) {
 	c.Next()
 }
 
-func FindUserByIdAndToken(userID, tokenString string) (*models.User, error) {
+func FindUserByIdAndToken(userID uint, tokenString string) (*models.User, error) {
 	var user models.User
-	result := initializers.DB.Where("id = ? AND tokens = ?", userID, tokenString).First(&user)
+	result := initializers.DB.Where("id = ? AND tokens @> ?", userID, "\""+tokenString+"\"").First(&user)
+
 	if result.Error != nil {
 		return nil, result.Error
 	}

@@ -257,6 +257,8 @@ func Signout(c *gin.Context) {
 
 func SendProfile(c *gin.Context) {
 	user, exists := c.Get("user")
+	fmt.Println("User information: ", user)
+
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
 		return
