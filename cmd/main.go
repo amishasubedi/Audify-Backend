@@ -17,6 +17,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
+	router.Use(middleware.EnableCors())
 	router.Use(middleware.ErrorHandlingMiddleware())
 
 	userRoutes := router.Group("/users")
