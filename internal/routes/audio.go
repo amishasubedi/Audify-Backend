@@ -1,11 +1,13 @@
 package routes
 
 import (
+	"backend/internal/controllers"
 	"backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupAudioRoutes(router *gin.RouterGroup) {
-	router.POST("/create", middleware.IsAuthenticated, middleware.FileUploadMiddleware(), CreateAudio)
+func SetAudioRoutes(router *gin.RouterGroup) {
+	router.POST("/create", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.CreateAudio)
+	router.PATCH("/:audioId", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateAudio)
 }

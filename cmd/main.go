@@ -25,5 +25,10 @@ func main() {
 		routes.SetUserRoutes(userRoutes)
 	}
 
+	audioRoutes := router.Group("/audio")
+	{
+		routes.SetAudioRoutes(audioRoutes)
+	}
+
 	router.Run()
 }
