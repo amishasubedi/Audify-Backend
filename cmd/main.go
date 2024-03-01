@@ -17,11 +17,17 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
+	router.Use(middleware.EnableCors())
 	router.Use(middleware.ErrorHandlingMiddleware())
 
 	userRoutes := router.Group("/users")
 	{
 		routes.SetUserRoutes(userRoutes)
+	}
+
+	audioRoutes := router.Group("/audio")
+	{
+		routes.SetAudioRoutes(audioRoutes)
 	}
 
 	router.Run()

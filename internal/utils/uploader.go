@@ -5,6 +5,8 @@ import (
 	"context"
 	"mime/multipart"
 
+	"github.com/google/uuid"
+
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 )
 
@@ -18,8 +20,10 @@ func UploadToCloudinary(file multipart.File, filePath string) (string, string, e
 		return "", "", err
 	}
 
+	fileBaseName := uuid.New().String()
+
 	uploadParams := uploader.UploadParams{
-		PublicID: filePath,
+		PublicID: fileBaseName,
 	}
 
 	result, err := cld.Upload.Upload(ctx, file, uploadParams)

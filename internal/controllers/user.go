@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -217,17 +216,8 @@ func Signin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"profile": gin.H{
-			"id":         user.ID,
-			"name":       user.Name,
-			"email":      user.Email,
-			"verified":   user.Verified,
-			"avatar":     user.AvatarURL,
-			"tokens":     len(user.Tokens),
-			"followers":  len(user.Followers),
-			"followings": len(user.Followings),
-		},
-		"token": tokenString,
+		"success": true,
+		"token":   tokenString,
 	})
 }
 
@@ -423,6 +413,7 @@ func UpdatePassword(c *gin.Context) {
  */
 func UpdateProfile(c *gin.Context) {
 	user, exists := c.Get("user")
+	var imageURL, public_id string
 
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
@@ -447,16 +438,30 @@ func UpdateProfile(c *gin.Context) {
 		userModel.Name = name
 	}
 
-	if file, exists := c.Get("file"); exists {
-		filePath, _ := c.Get("filePath")
-		imageUrl, public_id, err := utils.UploadToCloudinary(file.(multipart.File), filePath.(string))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar"})
-			return
-		}
-		userModel.AvatarURL = imageUrl
-		userModel.AvatarPublicID = public_id
+	file, err := c.FormFile("file")
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File is missing"})
+		return
 	}
+
+	filepath := file.Filename
+
+	picFile, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open audio file"})
+		return
+	}
+	defer picFile.Close()
+
+	imageURL, public_id, err = utils.UploadToCloudinary(picFile, filepath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload audio file"})
+		return
+	}
+
+	userModel.AvatarURL = imageURL
+	userModel.AvatarPublicID = public_id
 
 	if err := initializers.DB.Save(&userModel).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
