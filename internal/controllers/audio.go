@@ -103,3 +103,17 @@ func CreateAudio(c *gin.Context) {
 func UpdateAudio(c *gin.Context) {
 
 }
+
+/*
+* List all audios for admin
+ */
+func GetAllAudios(c *gin.Context) {
+	var audios []models.Audio
+
+	if result := initializers.DB.Find(&audios); result.Error != nil {
+		c.Error(result.Error)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": audios})
+}
