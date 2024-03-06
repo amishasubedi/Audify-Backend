@@ -139,5 +139,5 @@ func GetAllAudios(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"users": audios})
+	c.JSON(http.StatusOK, gin.H{"audios": audios})
 }

@@ -11,5 +11,5 @@ func SetAudioRoutes(router *gin.RouterGroup) {
 	router.POST("/create", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.CreateAudio)
 	router.PATCH("/:audioId", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateAudio)
 
-	router.GET("/", middleware.IsAuthenticated, controllers.GetAllAudios)
+	router.GET("/", controllers.GetAllAudios)
 }
