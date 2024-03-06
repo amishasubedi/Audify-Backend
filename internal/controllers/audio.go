@@ -101,6 +101,30 @@ func CreateAudio(c *gin.Context) {
 *
  */
 func UpdateAudio(c *gin.Context) {
+	// if user, exists := c.Get("user");
+	// var audioURL, coverURL, audioPublicID, coverPublicID string
+
+	// if !exists {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "unauthorized user"})
+	// 	return
+	// }
+
+	// userModel, ok := user.(*models.User)
+	// if !ok {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+	// 	return
+	// }
+
+	// fmt.Print("User Id", userModel.ID)
+
+	// title := c.PostForm("title")
+	// about := c.PostForm("about")
+	// category := c.PostForm("category")
+
+	// if title == "" || about == "" || category == "" {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Should not be empty"})
+	// 	return
+	// }
 
 }
 
