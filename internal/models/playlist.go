@@ -1,13 +1,38 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+
 	"gorm.io/gorm"
 )
 
+type JSONIntegerArray []int
+
+func (j *JSONIntegerArray) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(b, &j)
+}
+
+func (j JSONIntegerArray) Value() (driver.Value, error) {
+	if j == nil {
+		return nil, nil
+	}
+	return json.Marshal(j)
+}
+
 type Playlist struct {
 	gorm.Model
-	Title      string   `gorm:"column:title;validate:min=10,max=200"`
-	Owner      uint     `gorm:"column:owner_id;foreignKey:UserID"`
-	Songs      []string `gorm:"type:jsonb;validate:omitempty,dive,required"`
-	Visibility string   `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
+	Title      string           `gorm:"column:title;validate:min=10,max=200"`
+	Owner      uint             `gorm:"column:owner_id;foreignKey:UserID"`
+	Songs      JSONIntegerArray `gorm:"column:songs;type:json;default:[]"`
+	Visibility string           `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
 }

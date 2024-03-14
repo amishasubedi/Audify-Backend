@@ -3,7 +3,9 @@ package controllers
 import (
 	"backend/internal/initializers"
 	"backend/internal/models"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +47,13 @@ func CreatePlaylist(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
 			return
 		}
-		newPlaylist.Songs = append(newPlaylist.Songs, resId)
+
+		songID, err := strconv.Atoi(resId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid resource ID format"})
+			return
+		}
+		newPlaylist.Songs = append(newPlaylist.Songs, songID)
 	}
 
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
@@ -106,5 +114,25 @@ func DeletePlaylist(c *gin.Context) {
 }
 
 func GetPlaylistByProfile(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
 
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	fmt.Println("User Id", userModel.ID)
+
+	var playlists []models.Playlist
+	if err := initializers.DB.Where("owner_id = ?", userModel.ID).Find(&playlists).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to fetch playlists"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"playlists": playlists})
 }

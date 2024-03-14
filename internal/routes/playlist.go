@@ -10,4 +10,5 @@ import (
 func SetPlaylistRoutes(router *gin.RouterGroup) {
 	router.POST("/create", middleware.IsAuthenticated, controllers.CreatePlaylist)
 	router.GET("/:playlistId", middleware.IsAuthenticated, controllers.GetAudiosByPlaylist)
+	router.GET("/my-playlist", middleware.IsAuthenticated, controllers.GetPlaylistByProfile)
 }
