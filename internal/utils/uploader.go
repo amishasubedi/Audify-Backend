@@ -34,3 +34,22 @@ func UploadToCloudinary(file multipart.File, filePath string) (string, string, e
 	imageUrl := result.SecureURL
 	return imageUrl, result.PublicID, nil
 }
+
+/*
+* This method removes the image stored in the cloud
+ */
+func DestroyImage(publicId string) error {
+	ctx := context.Background()
+	cld, err := initializers.SetupCloudinary()
+
+	if err != nil {
+		return err
+	}
+
+	destroyParams := uploader.DestroyParams{
+		PublicID: publicId,
+	}
+
+	_, err = cld.Upload.Destroy(ctx, destroyParams)
+	return err
+}

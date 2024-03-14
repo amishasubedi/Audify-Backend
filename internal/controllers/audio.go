@@ -101,31 +101,70 @@ func CreateAudio(c *gin.Context) {
 *
  */
 func UpdateAudio(c *gin.Context) {
-	// if user, exists := c.Get("user");
-	// var audioURL, coverURL, audioPublicID, coverPublicID string
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unauthorized user"})
+		return
+	}
 
-	// if !exists {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "unauthorized user"})
-	// 	return
-	// }
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
 
-	// userModel, ok := user.(*models.User)
-	// if !ok {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
-	// 	return
-	// }
+	fmt.Println("User ID:", userModel.ID)
 
-	// fmt.Print("User Id", userModel.ID)
+	audioId := c.Param("audioId")
+	fmt.Println("AudioId is", audioId)
 
-	// title := c.PostForm("title")
-	// about := c.PostForm("about")
-	// category := c.PostForm("category")
+	updates := make(map[string]interface{})
+	for _, field := range []string{"name", "about", "category"} {
+		if value := c.PostForm(field); value != "" {
+			updates[field] = value
+		}
+	}
 
-	// if title == "" || about == "" || category == "" {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Should not be empty"})
-	// 	return
-	// }
+	var audio models.Audio
+	if err := initializers.DB.First(&audio, "id = ? AND owner = ?", audioId, userModel.ID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found or user not authorized to update this audio"})
+		return
+	}
 
+	coverFile, _ := c.FormFile("coverFile")
+	if coverFile != nil {
+		if audio.CoverPublicID != "" {
+			if err := utils.DestroyImage(audio.CoverPublicID); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove existing cover image"})
+				return
+			}
+		}
+
+		file, err := coverFile.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open cover file"})
+			return
+		}
+		defer file.Close()
+
+		coverURL, coverPublicID, err := utils.UploadToCloudinary(file, coverFile.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload new cover image"})
+			return
+		}
+		updates["cover_url"] = coverURL
+		updates["cover_public_id"] = coverPublicID
+	}
+
+	if err := initializers.DB.Model(&audio).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update audio"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Audio updated successfully",
+		"data":    audio,
+	})
 }
 
 /*
