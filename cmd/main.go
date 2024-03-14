@@ -35,5 +35,14 @@ func main() {
 		routes.SetPlaylistRoutes(playlistRoutes)
 	}
 
+	favoriteRoutes := router.Group("/favorite")
+	{
+		routes.SetFavoriteRoutes(favoriteRoutes)
+	}
+	historyRoutes := router.Group("/history")
+	{
+		routes.SetHistoryRoutes(historyRoutes)
+	}
+
 	router.Run()
 }
