@@ -15,4 +15,5 @@ func main() {
 	initializers.DB.AutoMigrate(&models.UserEmailVerification{})
 	initializers.DB.AutoMigrate(&models.UserPasswordReset{})
 	initializers.DB.AutoMigrate(&models.Audio{})
+	initializers.DB.AutoMigrate(&models.Playlist{})
 }
