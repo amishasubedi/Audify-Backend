@@ -5,7 +5,6 @@ import (
 	"backend/internal/models"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -48,12 +47,7 @@ func CreatePlaylist(c *gin.Context) {
 			return
 		}
 
-		songID, err := strconv.Atoi(resId)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid resource ID format"})
-			return
-		}
-		newPlaylist.Songs = append(newPlaylist.Songs, songID)
+		newPlaylist.Songs = append(newPlaylist.Songs, audioModel)
 	}
 
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
@@ -85,22 +79,28 @@ func GetAudiosByPlaylist(c *gin.Context) {
 		return
 	}
 
-	var audios []models.Audio
-
-	for _, songId := range playlist.Songs {
-		var audio models.Audio
-
-		if err := initializers.DB.Where("id = ?", songId).First(&audio).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Missing audios"})
-		}
-
-		audios = append(audios, audio)
+	audios := make([]interface{}, 0, len(playlist.Songs))
+	for _, audio := range playlist.Songs {
+		audios = append(audios, gin.H{
+			"id":              audio.ID,
+			"title":           audio.Title,
+			"about":           audio.About,
+			"owner":           audio.Owner,
+			"audio_url":       audio.AudioURL,
+			"audio_public_id": audio.AudioPublicID,
+			"cover_url":       audio.CoverURL,
+			"cover_public_id": audio.CoverPublicID,
+			"likes":           audio.Likes,
+			"category":        audio.Category,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "Audios fetched successfully",
-		"playlistId": playlistId,
-		"audios":     audios,
+		"playlist": gin.H{
+			"id":    playlist.ID,
+			"title": playlist.Title,
+		},
+		"audios": audios,
 	})
 
 }
