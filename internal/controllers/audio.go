@@ -170,7 +170,7 @@ func UpdateAudio(c *gin.Context) {
 /*
 * List all audios for admin
  */
-func GetAllAudios(c *gin.Context) {
+func GetLatestAudios(c *gin.Context) {
 	var audios []models.Audio
 
 	if result := initializers.DB.Find(&audios); result.Error != nil {
@@ -179,4 +179,37 @@ func GetAllAudios(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"audios": audios})
+}
+
+/*
+* Get latest uploads for unauthorized user
+ */
+func GetLatestUploads(c *gin.Context) {
+	var audios []models.Audio
+
+	if err := initializers.DB.Order("created_at desc").Limit(20).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query latest uploads"})
+		return
+	}
+
+	audioList := make([]map[string]interface{}, len(audios))
+	for i, item := range audios {
+		owner := models.User{}
+		initializers.DB.First(&owner, item.Owner)
+
+		audioList[i] = map[string]interface{}{
+			"id":       item.ID,
+			"title":    item.Title,
+			"about":    item.About,
+			"category": item.Category,
+			"file":     item.AudioURL,
+			"poster":   item.CoverURL,
+			"owner": map[string]interface{}{
+				"name": owner.Name,
+				"id":   owner.ID,
+			},
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"audios": audioList})
 }

@@ -43,6 +43,10 @@ func main() {
 	{
 		routes.SetHistoryRoutes(historyRoutes)
 	}
+	profileRoutes := router.Group("/profile")
+	{
+		routes.SetProfileRoutes(profileRoutes)
+	}
 
 	router.Run()
 }
