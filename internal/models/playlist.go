@@ -33,6 +33,6 @@ type Playlist struct {
 	gorm.Model
 	Title      string  `gorm:"column:title;validate:min=10,max=200"`
 	Owner      uint    `gorm:"column:owner_id;foreignKey:UserID"`
-	Songs      []Audio `gorm:"many2many:playlist_audios;"` //  use a join table named playlist_audios
+	Audios     []Audio `gorm:"many2many:playlist_audios;"`
 	Visibility string  `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
 }

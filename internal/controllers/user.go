@@ -4,7 +4,6 @@ import (
 	"backend/internal/initializers"
 	"backend/internal/models"
 	"backend/internal/utils"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -203,15 +202,15 @@ func Signin(c *gin.Context) {
 		return
 	}
 
-	tokensJSON, err := json.Marshal(append(user.Tokens, tokenString)) // multiple sign in token not appended
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process tokens"})
-		return
+	newToken := models.Token{
+		UserID:    user.ID,
+		Token:     tokenString,
+		Type:      "auth",
+		ExpiresAt: time.Now().Add(time.Hour * 72),
 	}
 
-	if err := initializers.DB.Model(&user).Update("tokens", tokensJSON).Error; err != nil {
-		fmt.Printf("Error updating user tokens in database: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update user tokens"})
+	if err := initializers.DB.Create(&newToken).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save new token"})
 		return
 	}
 
@@ -234,24 +233,15 @@ func Signin(c *gin.Context) {
  */
 func Signout(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
-	token := c.MustGet("token").(string)
-	fromAll := c.Query("fromAll")
+	tokenStr := c.MustGet("token").(string)
 
-	if fromAll == "yes" {
-		initializers.DB.Model(&models.User{}).Where("id = ?", userID).Update("tokens", []string{})
-	} else {
-		var user models.User
-		if err := initializers.DB.First(&user, userID).Error; err == nil {
-			newTokens := []string{}
-			for _, t := range user.Tokens {
-				if t != token {
-					newTokens = append(newTokens, t)
-				}
-			}
-			initializers.DB.Model(&user).Update("tokens", newTokens)
-		}
+	err := initializers.DB.Where("user_id = ? AND token = ?", userID, tokenStr).Delete(&models.Token{}).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign out"})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+
+	c.JSON(http.StatusOK, gin.H{"success": "Signed out successfully"})
 }
 
 func SendProfile(c *gin.Context) {

@@ -47,7 +47,7 @@ func CreatePlaylist(c *gin.Context) {
 			return
 		}
 
-		newPlaylist.Songs = append(newPlaylist.Songs, audioModel)
+		newPlaylist.Audios = append(newPlaylist.Audios, audioModel)
 	}
 
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
@@ -61,7 +61,7 @@ func CreatePlaylist(c *gin.Context) {
 			"id":         newPlaylist.ID,
 			"title":      newPlaylist.Title,
 			"visibility": newPlaylist.Visibility,
-			"songs":      newPlaylist.Songs,
+			"songs":      newPlaylist.Audios,
 		},
 	})
 }
@@ -74,13 +74,13 @@ func GetAudiosByPlaylist(c *gin.Context) {
 
 	var playlist models.Playlist
 
-	if err := initializers.DB.Preload("Songs").Where("id = ?", playlistId).First(&playlist).Error; err != nil {
+	if err := initializers.DB.Preload("Audios").Where("id = ?", playlistId).First(&playlist).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found"})
 		return
 	}
 
-	audios := make([]interface{}, 0, len(playlist.Songs))
-	for _, audio := range playlist.Songs {
+	audios := make([]interface{}, 0, len(playlist.Audios))
+	for _, audio := range playlist.Audios {
 		audios = append(audios, gin.H{
 			"id":              audio.ID,
 			"title":           audio.Title,
