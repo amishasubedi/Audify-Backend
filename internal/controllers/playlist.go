@@ -67,6 +67,36 @@ func CreatePlaylist(c *gin.Context) {
 }
 
 /*
+* This method fetches playlist details by id
+ */
+func GetPlaylistDetailsByID(c *gin.Context) {
+	playlistID := c.Param("playlistId")
+
+	var playlist models.Playlist
+	var owner models.User
+
+	if err := initializers.DB.Preload("Audios").Where("id = ?", playlistID).First(&playlist).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found"})
+		return
+	}
+
+	if err := initializers.DB.Where("id = ?", playlist.Owner).First(&owner).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Owner not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"playlist": gin.H{
+			"id":         playlist.ID,
+			"title":      playlist.Title,
+			"visibility": playlist.Visibility,
+			"owner_name": owner.Name,
+			"song_count": len(playlist.Audios),
+		},
+	})
+}
+
+/*
 * This method fetches the audio details of playlist by id
  */
 func GetAudiosByPlaylist(c *gin.Context) {
@@ -142,14 +172,9 @@ func UpdatePlaylist(c *gin.Context) {
 		return
 	}
 
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found or not owned by the user"})
-		return
-	}
-
 	if payload.Item != 0 {
 		var playlist models.Playlist
-		if err := initializers.DB.Preload("Songs").Where("id = ?", payload.ID).First(&playlist).Error; err != nil {
+		if err := initializers.DB.Preload("Audios").Where("id = ?", payload.ID).First(&playlist).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found"})
 			return
 		}
@@ -160,7 +185,7 @@ func UpdatePlaylist(c *gin.Context) {
 			return
 		}
 
-		err := initializers.DB.Model(&playlist).Association("Songs").Append(&audio)
+		err := initializers.DB.Model(&playlist).Association("Audios").Append(&audio)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add audio to playlist"})
 			return
