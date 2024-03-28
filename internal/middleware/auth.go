@@ -3,7 +3,6 @@ package middleware
 import (
 	"backend/internal/initializers"
 	"backend/internal/models"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -20,12 +19,25 @@ type CustomClaims struct {
 	jwt.StandardClaims
 }
 
+func FindUserByIdAndToken(userID uint, tokenString string) (*models.User, error) {
+	var token models.Token
+	if err := initializers.DB.Where("user_id = ? AND token = ?", userID, tokenString).First(&token).Error; err != nil {
+		return nil, err
+	}
+
+	var user models.User
+	if err := initializers.DB.Preload("Tokens").First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 /*
 * This method extracts the token from authorization header, and validate the token
  */
 func IsAuthenticated(c *gin.Context) {
 	authorization := c.GetHeader("Authorization")
-
 	if authorization == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access!"})
 		c.Abort()
@@ -33,10 +45,15 @@ func IsAuthenticated(c *gin.Context) {
 	}
 
 	tokenString := strings.TrimPrefix(authorization, "Bearer ")
-
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
+
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid token"})
+		c.Abort()
+		return
+	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		user, err := FindUserByIdAndToken(claims.UserID, tokenString)
@@ -48,21 +65,10 @@ func IsAuthenticated(c *gin.Context) {
 
 		c.Set("user", user)
 	} else {
-		fmt.Println(err)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid token"})
 		c.Abort()
 		return
 	}
 
 	c.Next()
-}
-
-func FindUserByIdAndToken(userID uint, tokenString string) (*models.User, error) {
-	var user models.User
-	result := initializers.DB.Where("id = ? AND tokens @> ?", userID, "\""+tokenString+"\"").First(&user)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return &user, nil
 }

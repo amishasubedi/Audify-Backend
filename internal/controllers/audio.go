@@ -213,3 +213,35 @@ func GetLatestUploads(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"audios": audioList})
 }
+
+/*
+* fetch random 8 songs from the database
+ */
+func GetSuggestionsList(c *gin.Context) {
+	var audios []models.Audio
+
+	if err := initializers.DB.Order("RANDOM()").Limit(8).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query random songs"})
+		return
+	}
+
+	audioList := make([]map[string]interface{}, len(audios))
+	for i, item := range audios {
+		owner := models.User{}
+		initializers.DB.First(&owner, item.Owner)
+
+		audioList[i] = map[string]interface{}{
+			"id":       item.ID,
+			"title":    item.Title,
+			"category": item.Category,
+			"file":     item.AudioURL,
+			"poster":   item.CoverURL,
+			"owner": map[string]interface{}{
+				"name": owner.Name,
+				"id":   owner.ID,
+			},
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"audios": audioList})
+}
