@@ -245,3 +245,39 @@ func GetSuggestionsList(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"audios": audioList})
 }
+
+func FilterByMood(c *gin.Context) {
+	category := c.Query("category")
+
+	if category == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category parameter is required"})
+		return
+	}
+
+	var audios []models.Audio
+
+	if err := initializers.DB.Order("created_at desc").Where("category = ?", category).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query audios by category"})
+		return
+	}
+
+	audioList := make([]map[string]interface{}, len(audios))
+	for i, item := range audios {
+		owner := models.User{}
+		initializers.DB.First(&owner, item.Owner)
+
+		audioList[i] = map[string]interface{}{
+			"id":       item.ID,
+			"title":    item.Title,
+			"category": item.Category,
+			"file":     item.AudioURL,
+			"poster":   item.CoverURL,
+			"owner": map[string]interface{}{
+				"name": owner.Name,
+				"id":   owner.ID,
+			},
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"audios": audioList})
+}
