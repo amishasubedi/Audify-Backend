@@ -4,7 +4,6 @@ import (
 	"backend/internal/initializers"
 	"backend/internal/models"
 	"backend/internal/utils"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,8 +24,6 @@ func CreateAudio(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
 		return
 	}
-
-	fmt.Print("User Id", userModel.ID)
 
 	title := c.PostForm("title")
 	about := c.PostForm("about")
@@ -113,10 +110,7 @@ func UpdateAudio(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("User ID:", userModel.ID)
-
 	audioId := c.Param("audioId")
-	fmt.Println("AudioId is", audioId)
 
 	updates := make(map[string]interface{})
 	for _, field := range []string{"name", "about", "category"} {
@@ -220,7 +214,7 @@ func GetLatestUploads(c *gin.Context) {
 func GetSuggestionsList(c *gin.Context) {
 	var audios []models.Audio
 
-	if err := initializers.DB.Order("RANDOM()").Limit(8).Find(&audios).Error; err != nil {
+	if err := initializers.DB.Order("RANDOM()").Limit(3).Find(&audios).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query random songs"})
 		return
 	}
@@ -258,6 +252,53 @@ func FilterByMood(c *gin.Context) {
 
 	if err := initializers.DB.Order("created_at desc").Where("category = ?", category).Find(&audios).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query audios by category"})
+		return
+	}
+
+	if len(audios) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No audios found for the specified category.",
+			"audios":  []interface{}{},
+		})
+		return
+	}
+
+	audioList := make([]map[string]interface{}, len(audios))
+	for i, item := range audios {
+		owner := models.User{}
+		initializers.DB.First(&owner, item.Owner)
+
+		audioList[i] = map[string]interface{}{
+			"id":       item.ID,
+			"title":    item.Title,
+			"category": item.Category,
+			"file":     item.AudioURL,
+			"poster":   item.CoverURL,
+			"owner": map[string]interface{}{
+				"name": owner.Name,
+				"id":   owner.ID,
+			},
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"audios": audioList})
+}
+
+func GetUploadsById(c *gin.Context) {
+	userId := c.Param("userId")
+
+	var audios []models.Audio
+
+	if err := initializers.DB.Where("owner = ?", userId).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query user's uploads"})
+		return
+	}
+
+	if len(audios) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No uploads found for the specified user.",
+			"audios":  []interface{}{},
+		})
 		return
 	}
 

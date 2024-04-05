@@ -246,7 +246,6 @@ func Signout(c *gin.Context) {
 
 func SendProfile(c *gin.Context) {
 	user, exists := c.Get("user")
-	fmt.Println("User information: ", user)
 
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
@@ -343,9 +342,6 @@ func IsValidResetToken(c *gin.Context) {
 		return
 	}
 
-	fmt.Print("Request body token", req.Token)
-	fmt.Print("Database TOken", resetToken.Token)
-
 	// check if the token passed and token stores matches
 	matched, err := models.CompareToken(req.Token, resetToken.Token)
 
@@ -424,8 +420,6 @@ func UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
 		return
 	}
-
-	fmt.Println("User ID is", userModel.ID)
 
 	name := c.PostForm("name")
 	if name != "" {

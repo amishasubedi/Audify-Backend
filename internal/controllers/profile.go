@@ -3,7 +3,6 @@ package controllers
 import (
 	"backend/internal/initializers"
 	"backend/internal/models"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -50,8 +49,6 @@ func GetPersonalUploads(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("User ID:", userModel.ID)
-
 	var audios []models.Audio
 
 	if err := initializers.DB.Where("owner = ?", userModel.ID).Find(&audios).Error; err != nil {
@@ -97,8 +94,6 @@ func GetPersonalPlaylist(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
 		return
 	}
-
-	fmt.Println("User ID:", userModel.ID)
 
 	var playlists []models.Playlist
 

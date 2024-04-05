@@ -108,20 +108,23 @@ func GetAudiosByPlaylist(c *gin.Context) {
 		return
 	}
 
-	audios := make([]interface{}, 0, len(playlist.Audios))
-	for _, audio := range playlist.Audios {
-		audios = append(audios, gin.H{
-			"id":              audio.ID,
-			"title":           audio.Title,
-			"about":           audio.About,
-			"owner":           audio.Owner,
-			"audio_url":       audio.AudioURL,
-			"audio_public_id": audio.AudioPublicID,
-			"cover_url":       audio.CoverURL,
-			"cover_public_id": audio.CoverPublicID,
-			"likes":           audio.Likes,
-			"category":        audio.Category,
-		})
+	audioList := make([]map[string]interface{}, len(playlist.Audios))
+	for i, audio := range playlist.Audios {
+		owner := models.User{}
+		initializers.DB.First(&owner, audio.Owner)
+
+		audioList[i] = map[string]interface{}{
+			"id":       audio.ID,
+			"title":    audio.Title,
+			"about":    audio.About,
+			"category": audio.Category,
+			"file":     audio.AudioURL,
+			"poster":   audio.CoverURL,
+			"owner": map[string]interface{}{
+				"name": owner.Name,
+				"id":   owner.ID,
+			},
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -129,9 +132,8 @@ func GetAudiosByPlaylist(c *gin.Context) {
 			"id":    playlist.ID,
 			"title": playlist.Title,
 		},
-		"audios": audios,
+		"audios": audioList,
 	})
-
 }
 
 /*
