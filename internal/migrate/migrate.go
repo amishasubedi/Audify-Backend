@@ -17,4 +17,5 @@ func main() {
 	initializers.DB.AutoMigrate(&models.Audio{})
 	initializers.DB.AutoMigrate(&models.Playlist{})
 	initializers.DB.AutoMigrate(&models.Token{})
+	initializers.DB.AutoMigrate(&models.Favorite{})
 }

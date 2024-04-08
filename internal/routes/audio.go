@@ -12,6 +12,7 @@ func SetAudioRoutes(router *gin.RouterGroup) {
 	router.PATCH("/:audioId", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateAudio)
 	router.GET("/recommendation", middleware.IsAuthenticated, controllers.GetSuggestionsList)
 	router.GET("/category", controllers.FilterByMood)
+	router.GET("/uploads/user/:userId", controllers.GetUploadsById)
 
 	router.GET("/", controllers.GetLatestAudios)
 	router.GET("/latest-uploads", controllers.GetLatestUploads)

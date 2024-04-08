@@ -263,57 +263,41 @@ func GeneratePasswordLink(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
+
 	if result.Error != nil {
-		c.Error(result.Error)
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
 	}
 
-	//var passwordSchema models.UserPasswordReset
+	initializers.DB.Where("user_id = ?", user.ID).Delete(&models.UserPasswordReset{})
 
-	// delete that users info from passwordResetSchema only if it exists
-	// output := initializers.DB.Where("email = ?", user.Email).First(&passwordSchema)
-	// if output.Error != nil {
-	// 	c.JSON(http.StatusForbidden, gin.H{"error": "User not found 1"})
-	// }
-
-	// deleteResult := initializers.DB.Delete(&passwordSchema)
-	// if deleteResult.Error != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete verification token"})
-	// 	return
-	// }
-
-	// generate token
 	token := utils.GenerateRandomHexString(36)
 
-	// create new passwordReset with that token
 	passwordRecord := models.UserPasswordReset{
 		UserID:    user.ID,
 		Token:     token,
 		CreatedAt: time.Now(),
 	}
 
-	if result := initializers.DB.Create(&passwordRecord); result.Error != nil {
-		c.Error(result.Error)
+	if err := initializers.DB.Create(&passwordRecord).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create password reset record"})
 		return
 	}
 
-	// generate resetLink
 	link := os.Getenv("PASSWORD_RESET_LINK")
 	resetLink := fmt.Sprintf("%s?token=%s&userId=%d", link, token, user.ID)
 
-	option := utils.Option{
+	emailOption := utils.Option{
 		Email: user.Email,
 		Link:  resetLink,
 	}
-
-	// send that link to users email
-	utils.SendForgetPasswordLink(option)
+	utils.SendForgetPasswordLink(emailOption)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
 }
@@ -358,7 +342,6 @@ func IsValidResetToken(c *gin.Context) {
 * This method updates users password
  */
 func UpdatePassword(c *gin.Context) {
-	// pass user id and password in request body
 	var req struct {
 		UserID   uint
 		Password string
@@ -369,7 +352,6 @@ func UpdatePassword(c *gin.Context) {
 		return
 	}
 
-	// find that user in the database, handle error
 	var user models.User
 
 	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
