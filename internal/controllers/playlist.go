@@ -9,7 +9,9 @@ import (
 )
 
 /*
-* This method creates a new playlist
+* CreatePlaylist creates a new playlist with a given title and visibility.
+* It expects form data containing 'title' and 'visibility' fields.
+* Requires user authentication.
  */
 func CreatePlaylist(c *gin.Context) {
 	user, exists := c.Get("user")
@@ -25,7 +27,6 @@ func CreatePlaylist(c *gin.Context) {
 	}
 
 	title := c.PostForm("title")
-	resId := c.PostForm("resId")
 	visibility := c.PostForm("visibility")
 
 	if title == "" || visibility == "" {
@@ -37,16 +38,6 @@ func CreatePlaylist(c *gin.Context) {
 		Title:      title,
 		Owner:      userModel.ID,
 		Visibility: visibility,
-	}
-
-	if resId != "" {
-		var audioModel models.Audio
-		if err := initializers.DB.Where("id = ?", resId).First(&audioModel).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
-			return
-		}
-
-		newPlaylist.Audios = append(newPlaylist.Audios, audioModel)
 	}
 
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
@@ -66,7 +57,55 @@ func CreatePlaylist(c *gin.Context) {
 }
 
 /*
-* This method fetches playlist details by id
+* AddToPlaylist adds an existing audio track to a specified playlist.
+* It expects form data with 'audioId' and 'playlistId'.
+* Requires user authentication and ownership of the playlist.
+ */
+func AddToPlaylist(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	audioID := c.PostForm("audioId")
+	playlistID := c.PostForm("playlistId")
+
+	if audioID == "" || playlistID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
+		return
+	}
+
+	var audio models.Audio
+	if err := initializers.DB.Where("id = ?", audioID).First(&audio).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
+		return
+	}
+
+	var playlist models.Playlist
+	if err := initializers.DB.Where("id = ? AND owner_id = ?", playlistID, userModel.ID).First(&playlist).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found or not owned by user"})
+		return
+	}
+
+	if err := initializers.DB.Model(&playlist).Association("Audios").Append(&audio); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add audio to playlist"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Audio added to playlist successfully"})
+}
+
+/*
+* GetPlaylistDetailsByID retrieves details of a playlist by its ID.
+* It uses a path parameter 'playlistId' to identify the playlist.
+* No authentication required to view public playlists.
  */
 func GetPlaylistDetailsByID(c *gin.Context) {
 	playlistID := c.Param("playlistId")
@@ -96,7 +135,9 @@ func GetPlaylistDetailsByID(c *gin.Context) {
 }
 
 /*
-* This method fetches the audio details of playlist by id
+* GetAudiosByPlaylist fetches all audio tracks associated with a specific playlist.
+* It uses a path parameter 'playlistId' to identify the playlist.
+* No authentication required to view public playlists.
  */
 func GetAudiosByPlaylist(c *gin.Context) {
 	playlistId := c.Param("playlistId")
@@ -137,13 +178,14 @@ func GetAudiosByPlaylist(c *gin.Context) {
 }
 
 /*
-* This method updates the specified playlist details and optionally adds an audio item if provided
+* UpdatePlaylist updates the details of a specified playlist.
+* It expects a JSON payload with 'id', 'title', and 'visibility'.
+* Requires user authentication and ownership of the playlist.
  */
 func UpdatePlaylist(c *gin.Context) {
 	var payload struct {
 		ID         uint   `json:"id"`
 		Title      string `json:"title"`
-		Item       uint   `json:"item"`
 		Visibility string `json:"visibility"`
 	}
 
@@ -173,37 +215,15 @@ func UpdatePlaylist(c *gin.Context) {
 		return
 	}
 
-	if payload.Item != 0 {
-		var playlist models.Playlist
-		if err := initializers.DB.Preload("Audios").Where("id = ?", payload.ID).First(&playlist).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found"})
-			return
-		}
-
-		var audio models.Audio
-		if err := initializers.DB.Where("id = ?", payload.Item).First(&audio).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
-			return
-		}
-
-		err := initializers.DB.Model(&playlist).Association("Audios").Append(&audio)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add audio to playlist"})
-			return
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{"message": "Playlist updated successfully"})
 }
 
 /*
-*
+* RemoveFromPlaylist removes a single audio track from a specified playlist.
+* It expects form data with 'audioId' and 'playlistId'.
+* Requires user authentication and ownership of the playlist.
  */
-func DeletePlaylist(c *gin.Context) {
-	playlistID := c.Query("playlistId")
-	resID := c.Query("resId")
-	all := c.Query("all")
-
+func RemoveFromPlaylist(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
@@ -216,38 +236,62 @@ func DeletePlaylist(c *gin.Context) {
 		return
 	}
 
-	if all == "yes" {
-		result := initializers.DB.Where("id = ? AND owner_id = ?", playlistID, userModel.ID).Delete(&models.Playlist{})
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete playlist"})
-			return
-		}
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found or not owned by the user"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Playlist deleted successfully"})
+	audioID := c.PostForm("audioId")
+	playlistID := c.PostForm("playlistId")
 
-	} else if resID != "" {
-		var playlist models.Playlist
-		if err := initializers.DB.Preload("Songs").Where("id = ? AND owner_id = ?", playlistID, userModel.ID).First(&playlist).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found"})
-			return
-		}
-
-		var audio models.Audio
-		if err := initializers.DB.Where("id = ?", resID).First(&audio).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
-			return
-		}
-
-		err := initializers.DB.Model(&playlist).Association("Songs").Delete(&audio)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove audio from playlist"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Audio removed from playlist successfully"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	if audioID == "" || playlistID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
+		return
 	}
+
+	var playlist models.Playlist
+	if err := initializers.DB.Where("id = ? AND owner_id = ?", playlistID, userModel.ID).First(&playlist).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found or not owned by user"})
+		return
+	}
+
+	if err := initializers.DB.Model(&playlist).Association("Audios").Delete(&models.Audio{}, audioID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove audio from playlist"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Audio removed from playlist successfully"})
+}
+
+/*
+* DeletePlaylist deletes an entire playlist by its ID.
+* It uses a path parameter 'playlistId' to identify the playlist to be deleted.
+* Requires user authentication and ownership of the playlist.
+ */
+func DeletePlaylist(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	playlistID := c.Param("playlistId")
+	if playlistID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required parameter: playlistId"})
+		return
+	}
+
+	var playlist models.Playlist
+	if err := initializers.DB.Where("id = ? AND owner_id = ?", playlistID, userModel.ID).First(&playlist).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playlist not found or not owned by user"})
+		return
+	}
+
+	if err := initializers.DB.Delete(&playlist).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete playlist"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Playlist deleted successfully"})
 }

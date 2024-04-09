@@ -79,7 +79,6 @@ func DeleteFromFavorite(c *gin.Context) {
 * This method fetches favorite audios of an user
  */
 func GetAllFavorites(c *gin.Context) {
-	// Assuming the user is authenticated and their ID is available
 	user, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
@@ -92,7 +91,6 @@ func GetAllFavorites(c *gin.Context) {
 		return
 	}
 
-	// Create a slice to hold the favorite audios
 	var favorites []models.Favorite
 	if err := initializers.DB.Preload("Audio").Where("user_id = ?", userModel.ID).Find(&favorites).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve favorites"})
@@ -101,10 +99,8 @@ func GetAllFavorites(c *gin.Context) {
 
 	audioList := make([]map[string]interface{}, 0)
 	for _, fav := range favorites {
-		// Preload each owner for the audio separately if needed
 		var owner models.User
 		if err := initializers.DB.First(&owner, fav.Audio.Owner).Error; err != nil {
-			// Handle the error, perhaps continue to the next favorite
 			continue
 		}
 
@@ -123,6 +119,5 @@ func GetAllFavorites(c *gin.Context) {
 		audioList = append(audioList, audioInfo)
 	}
 
-	// Return the list of favorites with detailed audio information
 	c.JSON(http.StatusOK, gin.H{"favorites": audioList})
 }
