@@ -12,7 +12,7 @@ func SetPlaylistRoutes(router *gin.RouterGroup) {
 	router.POST("/add", middleware.IsAuthenticated, controllers.AddToPlaylist)
 
 	router.POST("/update-playlist", middleware.IsAuthenticated, controllers.UpdatePlaylist)
-	router.POST("/remove/", middleware.IsAuthenticated, controllers.RemoveFromPlaylist)
+	router.POST("/remove", middleware.IsAuthenticated, controllers.RemoveFromPlaylist)
 	router.DELETE("/delete/:playlistId", middleware.IsAuthenticated, controllers.DeletePlaylist)
 
 	router.GET("/:playlistId", middleware.IsAuthenticated, controllers.GetAudiosByPlaylist)

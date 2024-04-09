@@ -94,6 +94,12 @@ func AddToPlaylist(c *gin.Context) {
 		return
 	}
 
+	var existingAudios []models.Audio
+	if err := initializers.DB.Model(&playlist).Association("Audios").Find(&existingAudios, "id = ?", audioID); err == nil && len(existingAudios) > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "Audio already in playlist"})
+		return
+	}
+
 	if err := initializers.DB.Model(&playlist).Association("Audios").Append(&audio); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add audio to playlist"})
 		return
@@ -250,8 +256,14 @@ func RemoveFromPlaylist(c *gin.Context) {
 		return
 	}
 
-	if err := initializers.DB.Model(&playlist).Association("Audios").Delete(&models.Audio{}, audioID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove audio from playlist"})
+	var audio models.Audio
+	if err := initializers.DB.First(&audio, audioID).Error; err == nil {
+		if err := initializers.DB.Model(&playlist).Association("Audios").Delete(&audio); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove audio from playlist"})
+			return
+		}
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
 		return
 	}
 

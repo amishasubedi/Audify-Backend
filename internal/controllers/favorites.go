@@ -36,8 +36,20 @@ func AddToFavorite(c *gin.Context) {
 		return
 	}
 
+	var count int64
+	err := initializers.DB.Model(&models.Favorite{}).Where("user_id = ? AND audio_id = ?", userModel.ID, audio.ID).Count(&count).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query favorites"})
+		return
+	}
+
+	if count > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "Audio already in favorite"})
+		return
+	}
+
 	newFavorite := models.Favorite{UserID: userModel.ID, AudioID: audio.ID}
-	if err := initializers.DB.FirstOrCreate(&newFavorite, newFavorite).Error; err != nil {
+	if err := initializers.DB.Create(&newFavorite).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add to favorites"})
 		return
 	}
