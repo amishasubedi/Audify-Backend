@@ -18,4 +18,5 @@ func main() {
 	initializers.DB.AutoMigrate(&models.Playlist{})
 	initializers.DB.AutoMigrate(&models.Token{})
 	initializers.DB.AutoMigrate(&models.Favorite{})
+	initializers.DB.AutoMigrate(&models.User_Relations{})
 }

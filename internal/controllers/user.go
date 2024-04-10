@@ -216,13 +216,11 @@ func Signin(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
-			"id":         user.ID,
-			"name":       user.Name,
-			"email":      user.Email,
-			"verified":   user.Verified,
-			"avatar":     user.AvatarURL,
-			"followers":  len(user.Followers),
-			"followings": len(user.Followings),
+			"id":       user.ID,
+			"name":     user.Name,
+			"email":    user.Email,
+			"verified": user.Verified,
+			"avatar":   user.AvatarURL,
 		},
 		"token": tokenString,
 	})

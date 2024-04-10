@@ -13,4 +13,6 @@ func SetProfileRoutes(router *gin.RouterGroup) {
 	router.GET("/my-songs", middleware.IsAuthenticated, controllers.GetPersonalUploads)
 	router.GET("/my-playlist", middleware.IsAuthenticated, controllers.GetPersonalPlaylist)
 
+	router.POST("/follow/:followingId", middleware.IsAuthenticated, controllers.FollowUser)
+
 }

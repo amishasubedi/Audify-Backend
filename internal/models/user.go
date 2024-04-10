@@ -17,10 +17,16 @@ type User struct {
 	AvatarPublicID string   `gorm:"column:avatar_public_id;validate:'omitempty,alphanum'"`
 	Verified       bool     `gorm:"column:verified"`
 	IsAdmin        bool     `gorm:"column:is_admin"`
-	Followers      []*User  `gorm:"many2many:user_followers;joinForeignKey:FollowingID;joinReferences:FollowerID"`
-	Followings     []*User  `gorm:"many2many:user_followers;joinForeignKey:FollowerID;joinReferences:FollowingID"`
 	Favorites      []*Audio `gorm:"many2many:user_favorites;"`
 	Tokens         []*Token `gorm:"foreignKey:UserID"`
+}
+
+type User_Relations struct {
+	gorm.Model
+	FollowerID  uint `gorm:"not null"`
+	FollowingID uint `gorm:"not null"`
+	Follower    User `gorm:"foreignKey:FollowerID"`
+	Following   User `gorm:"foreignKey:FollowingID"`
 }
 
 type Token struct {

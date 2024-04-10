@@ -4,6 +4,7 @@ import (
 	"backend/internal/initializers"
 	"backend/internal/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,11 +24,9 @@ func GetPublicProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
-			"id":         user.ID,
-			"name":       user.Name,
-			"avatar":     user.AvatarURL,
-			"followers":  len(user.Followers),
-			"followings": len(user.Followings),
+			"id":     user.ID,
+			"name":   user.Name,
+			"avatar": user.AvatarURL,
 		},
 	})
 }
@@ -120,6 +119,47 @@ func GetPersonalPlaylist(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"audios": playlistList})
 }
 
-func UpdateFollower(c *gin.Context) {
+// followers - followings logic
 
+func FollowUser(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	followingIDStr := c.Param("followingId")
+	followingID, err := strconv.ParseUint(followingIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	if userModel.ID == uint(followingID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot follow oneself"})
+		return
+	}
+
+	var existingRelation models.User_Relations
+	if initializers.DB.Where("follower_id = ? AND following_id = ?", userModel.ID, followingID).First(&existingRelation).Error == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Already following this user"})
+		return
+	}
+
+	newRelation := models.User_Relations{
+		FollowerID:  userModel.ID,
+		FollowingID: uint(followingID),
+	}
+
+	if err := initializers.DB.Create(&newRelation).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to follow user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Followed user successfully"})
 }

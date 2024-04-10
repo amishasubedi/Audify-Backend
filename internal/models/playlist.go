@@ -31,8 +31,10 @@ func (j JSONIntegerArray) Value() (driver.Value, error) {
 
 type Playlist struct {
 	gorm.Model
-	Title      string  `gorm:"column:title;validate:min=10,max=200"`
-	Owner      uint    `gorm:"column:owner_id;foreignKey:UserID"`
-	Audios     []Audio `gorm:"many2many:playlist_audios;"`
-	Visibility string  `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
+	Title         string  `gorm:"column:title;validate:min=10,max=200"`
+	Owner         uint    `gorm:"column:owner_id;foreignKey:UserID"`
+	Audios        []Audio `gorm:"many2many:playlist_audios;"`
+	CoverURL      string  `gorm:"column:cover_url" validate:"omitempty,url"` // composite image for top n songs - implement later
+	CoverPublicID string  `gorm:"column:cover_public_id" validate:"omitempty,alphanum"`
+	Visibility    string  `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
 }
