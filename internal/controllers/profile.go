@@ -22,12 +22,54 @@ func GetPublicProfile(c *gin.Context) {
 		return
 	}
 
+	var followersCount, followingsCount int64
+
+	initializers.DB.Model(&models.User_Relations{}).Where("following_id = ?", profileId).Count(&followersCount)
+	initializers.DB.Model(&models.User_Relations{}).Where("follower_id = ?", profileId).Count(&followingsCount)
+
 	c.JSON(http.StatusOK, gin.H{
 		"profile": gin.H{
-			"id":     user.ID,
-			"name":   user.Name,
-			"avatar": user.AvatarURL,
+			"id":         user.ID,
+			"name":       user.Name,
+			"avatar":     user.AvatarURL,
+			"bio":        user.Bio,
+			"followers":  followersCount,
+			"followings": followingsCount,
 		},
+	})
+}
+
+// List all followers for a user
+func ListFollowers(c *gin.Context) {
+	userId := c.Param("userId")
+
+	var relations []models.User_Relations
+	initializers.DB.Preload("Follower").Where("following_id = ?", userId).Find(&relations)
+
+	var followers []models.User
+	for _, relation := range relations {
+		followers = append(followers, relation.Follower)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"followers": followers,
+	})
+}
+
+// List all followings for a user
+func ListFollowing(c *gin.Context) {
+	userId := c.Param("userId")
+
+	var relations []models.User_Relations
+	initializers.DB.Preload("Following").Where("follower_id = ?", userId).Find(&relations)
+
+	var followings []models.User
+	for _, relation := range relations {
+		followings = append(followings, relation.Following)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"following": followings,
 	})
 }
 
@@ -120,7 +162,6 @@ func GetPersonalPlaylist(c *gin.Context) {
 }
 
 // followers - followings logic
-
 func FollowUser(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
@@ -162,4 +203,43 @@ func FollowUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Followed user successfully"})
+}
+
+func UnfollowUser(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	followingIDStr := c.Param("followingId")
+	followingID, err := strconv.ParseUint(followingIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	if userModel.ID == uint(followingID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot unfollow oneself"})
+		return
+	}
+
+	var existingRelation models.User_Relations
+	result := initializers.DB.Where("follower_id = ? AND following_id = ?", userModel.ID, followingID).First(&existingRelation)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Relationship does not exist"})
+		return
+	}
+
+	if err := initializers.DB.Delete(&existingRelation).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unfollow user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Unfollowed user successfully"})
 }

@@ -13,6 +13,7 @@ type User struct {
 	Name           string   `gorm:"column:name;validate:'required,min=3,max=20'"`
 	Email          string   `gorm:"column:email;unique;validate:'required,email'"`
 	Password       string   `gorm:"column:password;validate:'required,min=8'"`
+	Bio            string   `gorm:"column:bio;"`
 	AvatarURL      string   `gorm:"column:avatar_url;validate:'omitempty,url'"`
 	AvatarPublicID string   `gorm:"column:avatar_public_id;validate:'omitempty,alphanum'"`
 	Verified       bool     `gorm:"column:verified"`

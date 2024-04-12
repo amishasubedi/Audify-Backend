@@ -402,15 +402,17 @@ func UpdateProfile(c *gin.Context) {
 	}
 
 	name := c.PostForm("name")
-	if name != "" {
+	bio := c.PostForm("bio")
+	if name != "" || bio != "" {
 		if len(name) < 3 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid name, must be at least 3 characters long"})
 			return
 		}
 		userModel.Name = name
+		userModel.Bio = bio
 	}
 
-	file, err := c.FormFile("file")
+	file, err := c.FormFile("picFile")
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File is missing"})
