@@ -230,10 +230,26 @@ func Signin(c *gin.Context) {
 * Logout authenticated user
  */
 func Signout(c *gin.Context) {
-	userID := c.MustGet("userID").(uint)
-	tokenStr := c.MustGet("token").(string)
+	user, exists := c.Get("user")
 
-	err := initializers.DB.Where("user_id = ? AND token = ?", userID, tokenStr).Delete(&models.Token{}).Error
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
+	tokenStr := c.PostForm("token")
+	if tokenStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token not provided"})
+		return
+	}
+
+	err := initializers.DB.Where("user_id = ? AND token = ?", userModel.ID, tokenStr).Delete(&models.Token{}).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign out"})
 		return
@@ -387,15 +403,12 @@ func UpdatePassword(c *gin.Context) {
  */
 func UpdateProfile(c *gin.Context) {
 	user, exists := c.Get("user")
-	var imageURL, public_id string
-
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
 		return
 	}
 
 	userModel, ok := user.(*models.User)
-
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
 		return
@@ -412,36 +425,41 @@ func UpdateProfile(c *gin.Context) {
 		userModel.Bio = bio
 	}
 
-	file, err := c.FormFile("picFile")
+	file, fileErr := c.FormFile("picFile")
+	if fileErr == nil {
+		if userModel.AvatarPublicID != "" {
+			err := utils.DestroyImage(userModel.AvatarPublicID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to destroy existing image"})
+				return
+			}
+		}
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File is missing"})
+		filepath := file.Filename
+		picFile, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+			return
+		}
+		defer picFile.Close()
+
+		imageURL, publicID, err := utils.UploadToCloudinary(picFile, filepath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
+			return
+		}
+
+		userModel.AvatarURL = imageURL
+		userModel.AvatarPublicID = publicID
+	} else if fileErr != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Error retrieving file"})
 		return
 	}
-
-	filepath := file.Filename
-
-	picFile, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open audio file"})
-		return
-	}
-	defer picFile.Close()
-
-	imageURL, public_id, err = utils.UploadToCloudinary(picFile, filepath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload audio file"})
-		return
-	}
-
-	userModel.AvatarURL = imageURL
-	userModel.AvatarPublicID = public_id
 
 	if err := initializers.DB.Save(&userModel).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "user": userModel})
-
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }
