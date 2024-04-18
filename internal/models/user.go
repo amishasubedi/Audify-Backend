@@ -1,7 +1,7 @@
 package models
 
 import (
-	"log"
+	"backend/internal/initializers"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -38,12 +38,23 @@ type Token struct {
 	ExpiresAt time.Time `gorm:"column:expires_at"`
 }
 
-func HashPassword(password string) string {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+// save user details
+func (user *User) Save() (*User, error) {
+	err := initializers.DB.Create(&user).Error
 	if err != nil {
-		log.Panic(err)
+		return &User{}, err
 	}
-	return string(bytes)
+	return user, nil
+}
+
+// generate encrypted password
+func (user *User) BeforeSave(*gorm.DB) error {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.Password = string(passwordHash)
+	return nil
 }
 
 func CheckPasswordHash(password, hash string) bool {

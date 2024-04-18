@@ -181,7 +181,7 @@ func GetLatestAudios(c *gin.Context) {
 func GetLatestUploads(c *gin.Context) {
 	var audios []models.Audio
 
-	if err := initializers.DB.Order("created_at desc").Limit(20).Find(&audios).Error; err != nil {
+	if err := initializers.DB.Order("created_at desc").Limit(12).Find(&audios).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query latest uploads"})
 		return
 	}

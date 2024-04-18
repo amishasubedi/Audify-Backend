@@ -39,8 +39,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	newUser.Password = models.HashPassword(newUser.Password)
-
 	if result := initializers.DB.Create(&newUser); result.Error != nil {
 		c.Error(result.Error)
 		return
@@ -49,7 +47,7 @@ func CreateUser(c *gin.Context) {
 	token := utils.GenerateToken(6)
 	verificationRecord := models.UserEmailVerification{
 		UserID:    newUser.ID,
-		Token:     models.HashPassword(token),
+		Token:     token,
 		CreatedAt: time.Now(),
 	}
 
@@ -138,11 +136,10 @@ func ReVerifyEmail(c *gin.Context) {
 	}
 
 	token := utils.GenerateToken(6)
-	token_hashed := models.HashPassword(token)
 
 	verificationRecord := models.UserEmailVerification{
 		UserID:    user.ID,
-		Token:     token_hashed,
+		Token:     token,
 		CreatedAt: time.Now(),
 	}
 
@@ -180,14 +177,14 @@ func Signin(c *gin.Context) {
 	}
 
 	var user models.User
-	result := initializers.DB.Where("email = ?", req.Email).First(&user)
-	if result.Error != nil {
+	if err := initializers.DB.Select("ID", "Password", "Email", "Name", "Verified", "AvatarURL").
+		Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
 	}
 
 	if !models.CheckPasswordHash(req.Password, user.Password) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid Password"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid password"})
 		return
 	}
 
@@ -373,16 +370,11 @@ func UpdatePassword(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
 	}
-
-	matched := models.CheckPasswordHash(req.Password, user.Password)
-	if matched {
+	if models.CheckPasswordHash(req.Password, user.Password) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "The new password should be different"})
 		return
 	}
-
-	hashedPassword := models.HashPassword(req.Password)
-
-	user.Password = hashedPassword
+	user.Password = req.Password
 
 	if err := initializers.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})

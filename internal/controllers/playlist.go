@@ -40,6 +40,8 @@ func CreatePlaylist(c *gin.Context) {
 		Visibility: visibility,
 	}
 
+	newPlaylist.CoverURL = newPlaylist.CalculateCoverURL()
+
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create playlist"})
 		return
@@ -138,6 +140,53 @@ func GetPlaylistDetailsByID(c *gin.Context) {
 			"song_count": len(playlist.Audios),
 		},
 	})
+}
+
+// Query public playlists not owned by the current user that have at least one song
+func GetPublicPlaylists(c *gin.Context) {
+	var playlists []models.Playlist
+
+	err := initializers.DB.
+		Joins("JOIN playlist_audios ON playlist_audios.playlist_id = playlists.id").
+		Joins("JOIN audios ON audios.id = playlist_audios.audio_id AND audios.deleted_at IS NULL").
+		Where("playlists.visibility = 'public'").
+		Group("playlists.id").
+		Having("COUNT(audios.id) > 0").
+		Find(&playlists).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public playlists", "details": err.Error()})
+		return
+	}
+
+	response := make([]gin.H, 0)
+
+	for _, playlist := range playlists {
+		var owner models.User
+
+		if err := initializers.DB.Where("id = ?", playlist.Owner).First(&owner).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch owner details", "details": err.Error()})
+			return
+		}
+
+		var audioCount int64
+		initializers.DB.Model(&models.Audio{}).
+			Joins("JOIN playlist_audios ON playlist_audios.audio_id = audios.id").
+			Where("playlist_audios.playlist_id = ?", playlist.ID).
+			Count(&audioCount)
+
+		playlistDetails := gin.H{
+			"id":         playlist.ID,
+			"title":      playlist.Title,
+			"visibility": playlist.Visibility,
+			"owner_name": owner.Name,
+			"song_count": audioCount,
+		}
+
+		response = append(response, playlistDetails)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"playlists": response})
 }
 
 /*

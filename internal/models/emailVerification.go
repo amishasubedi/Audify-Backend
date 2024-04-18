@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type UserEmailVerification struct {
@@ -11,6 +12,15 @@ type UserEmailVerification struct {
 	Token          string    `gorm:"column:token;not null"`
 	CreatedAt      time.Time `gorm:"default:current_timestamp"`
 	UserID         uint      `gorm:"foreignKey:UserID"`
+}
+
+func (uev *UserEmailVerification) BeforeSave(*gorm.DB) error {
+	hashedToken, err := bcrypt.GenerateFromPassword([]byte(uev.Token), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	uev.Token = string(hashedToken)
+	return nil
 }
 
 type VerifyEmail struct {

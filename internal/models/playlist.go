@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -34,7 +36,21 @@ type Playlist struct {
 	Title         string  `gorm:"column:title;validate:min=10,max=200"`
 	Owner         uint    `gorm:"column:owner_id;foreignKey:UserID"`
 	Audios        []Audio `gorm:"many2many:playlist_audios;"`
-	CoverURL      string  `gorm:"column:cover_url" validate:"omitempty,url"` // composite image for top n songs - implement later
+	CoverURL      string  `gorm:"column:cover_url" validate:"omitempty,url"`
 	CoverPublicID string  `gorm:"column:cover_public_id" validate:"omitempty,alphanum"`
 	Visibility    string  `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
+}
+
+func (p *Playlist) CalculateCoverURL() string {
+	if len(p.Audios) == 0 {
+		return ""
+	}
+
+	var coverURLs []string
+	for _, audio := range p.Audios {
+		coverURLs = append(coverURLs, audio.CoverURL)
+	}
+
+	combinedCoverURL := strings.Join(coverURLs, ",")
+	return fmt.Sprintf("https://example.com/combine?covers=%s", combinedCoverURL)
 }
