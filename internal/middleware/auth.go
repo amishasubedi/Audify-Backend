@@ -72,3 +72,21 @@ func IsAuthenticated(c *gin.Context) {
 
 	c.Next()
 }
+
+func IsAdmin(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access!"})
+		c.Abort()
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok || !userModel.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required!"})
+		c.Abort()
+		return
+	}
+
+	c.Next()
+}

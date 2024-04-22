@@ -26,5 +26,14 @@ func SetUserRoutes(router *gin.RouterGroup) {
 
 	// profile management route
 	router.POST("/check", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateProfile)
-	router.GET("/", controllers.GetAllUsers)
+
+	router.GET("/recommendation", middleware.IsAuthenticated, controllers.GetRecommendedUsers)
+
+	// admin
+	router.DELETE("/delete/:userId", middleware.IsAdmin, middleware.IsAuthenticated, controllers.DeleteUser)
+	router.GET("/all-users", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetAllUsers)
+	router.GET("/contents/uploads", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetUploadsById)
+	router.GET("/contents/playlist", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetPlaylistDetailsByID)
+	router.GET("/contents/playlist/audios", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetAudiosByPlaylist)
+	router.GET("/delete/playlist/:playlistId", middleware.IsAdmin, middleware.IsAuthenticated, controllers.DeletePlaylist)
 }

@@ -40,8 +40,6 @@ func CreatePlaylist(c *gin.Context) {
 		Visibility: visibility,
 	}
 
-	newPlaylist.CoverURL = newPlaylist.CalculateCoverURL()
-
 	if err := initializers.DB.Create(&newPlaylist).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create playlist"})
 		return
@@ -126,6 +124,13 @@ func GetPlaylistDetailsByID(c *gin.Context) {
 		return
 	}
 
+	playlist.SetRandomCoverURL(initializers.DB)
+
+	if err := initializers.DB.Model(&playlist).Update("cover_url", playlist.CoverURL).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update playlist cover"})
+		return
+	}
+
 	if err := initializers.DB.Where("id = ?", playlist.Owner).First(&owner).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Owner not found"})
 		return
@@ -136,7 +141,9 @@ func GetPlaylistDetailsByID(c *gin.Context) {
 			"id":         playlist.ID,
 			"title":      playlist.Title,
 			"visibility": playlist.Visibility,
+			"coverurl":   playlist.CoverURL,
 			"owner_name": owner.Name,
+			"owner_id":   owner.ID,
 			"song_count": len(playlist.Audios),
 		},
 	})
@@ -179,6 +186,7 @@ func GetPublicPlaylists(c *gin.Context) {
 			"id":         playlist.ID,
 			"title":      playlist.Title,
 			"visibility": playlist.Visibility,
+			"coverurl":   playlist.CoverURL,
 			"owner_name": owner.Name,
 			"song_count": audioCount,
 		}

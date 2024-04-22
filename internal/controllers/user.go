@@ -65,18 +65,6 @@ func CreateUser(c *gin.Context) {
 }
 
 /*
-* This method fetches and returns all registered users.
- */
-func GetAllUsers(c *gin.Context) {
-	var users []models.User
-	if result := initializers.DB.Find(&users); result.Error != nil {
-		c.Error(result.Error)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"users": users})
-}
-
-/*
 * This method verifies a user's email using provided token.
  */
 func VerifyEmail(c *gin.Context) {
@@ -218,6 +206,7 @@ func Signin(c *gin.Context) {
 			"email":    user.Email,
 			"verified": user.Verified,
 			"avatar":   user.AvatarURL,
+			"admin":    user.IsAdmin,
 		},
 		"token": tokenString,
 	})
@@ -454,4 +443,43 @@ func UpdateProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+}
+
+// GetRecommendedUsers returns a list of users who have uploaded at least 3 songs
+func GetRecommendedUsers(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	var users []models.User
+	result := initializers.DB.
+		Joins("JOIN audios ON audios.owner = users.id").
+		Where("users.id != ?", userModel.ID).
+		Group("users.id").
+		Having("count(audios.id) >= ?", 3).
+		Find(&users)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	userProfiles := make([]map[string]interface{}, len(users))
+	for i, user := range users {
+		userProfiles[i] = map[string]interface{}{
+			"id":     user.ID,
+			"name":   user.Name,
+			"avatar": user.AvatarURL,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"recommendedUsers": userProfiles})
 }

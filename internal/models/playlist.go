@@ -4,8 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
+	"math/rand"
 
 	"gorm.io/gorm"
 )
@@ -41,16 +40,12 @@ type Playlist struct {
 	Visibility    string  `gorm:"column:visibility;default:public;validate:oneof=public private auto"`
 }
 
-func (p *Playlist) CalculateCoverURL() string {
-	if len(p.Audios) == 0 {
-		return ""
+func (p *Playlist) SetRandomCoverURL(db *gorm.DB) error {
+	if len(p.Audios) > 0 {
+		randomIndex := rand.Intn(len(p.Audios))
+		p.CoverURL = p.Audios[randomIndex].CoverURL
+	} else {
+		p.CoverURL = "https://www.gstatic.com/youtube/media/ytm/images/pbg/playlist-empty-state-@576.png"
 	}
-
-	var coverURLs []string
-	for _, audio := range p.Audios {
-		coverURLs = append(coverURLs, audio.CoverURL)
-	}
-
-	combinedCoverURL := strings.Join(coverURLs, ",")
-	return fmt.Sprintf("https://example.com/combine?covers=%s", combinedCoverURL)
+	return nil
 }

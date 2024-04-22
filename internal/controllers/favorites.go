@@ -131,5 +131,5 @@ func GetAllFavorites(c *gin.Context) {
 		audioList = append(audioList, audioInfo)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"favorites": audioList})
+	c.JSON(http.StatusOK, gin.H{"favorites": audioList, "owner_id": userModel.ID})
 }
