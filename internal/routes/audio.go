@@ -15,5 +15,6 @@ func SetAudioRoutes(router *gin.RouterGroup) {
 	router.GET("/uploads/user/:userId", controllers.GetUploadsById)
 
 	router.GET("/", controllers.GetLatestAudios)
-	router.GET("/latest-uploads", controllers.GetLatestUploads)
+	router.GET("/latest-uploads", middleware.IsAuthenticated, controllers.GetLatestUploads)
+	router.GET("/search", middleware.IsAuthenticated, controllers.GeneralSearch)
 }

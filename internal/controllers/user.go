@@ -255,11 +255,12 @@ func SendProfile(c *gin.Context) {
 }
 
 /*
-* This method generates reset password link and send that link to user's email.
+* This method updates users password
  */
-func GeneratePasswordLink(c *gin.Context) {
+func UpdatePassword(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -269,110 +270,19 @@ func GeneratePasswordLink(c *gin.Context) {
 
 	var user models.User
 	result := initializers.DB.Where("email = ?", req.Email).First(&user)
-
 	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	initializers.DB.Where("user_id = ?", user.ID).Delete(&models.UserPasswordReset{})
-
-	token := utils.GenerateRandomHexString(36)
-
-	passwordRecord := models.UserPasswordReset{
-		UserID:    user.ID,
-		Token:     token,
-		CreatedAt: time.Now(),
-	}
-
-	if err := initializers.DB.Create(&passwordRecord).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create password reset record"})
-		return
-	}
-
-	link := os.Getenv("PASSWORD_RESET_LINK")
-	resetLink := fmt.Sprintf("%s?token=%s&userId=%d", link, token, user.ID)
-
-	emailOption := utils.Option{
-		Email: user.Email,
-		Link:  resetLink,
-	}
-	utils.SendForgetPasswordLink(emailOption)
-
-	c.JSON(http.StatusOK, gin.H{"message": "Please check your email"})
-}
-
-/*
-* This method verifies if the reset token entered by user is valid
- */
-func IsValidResetToken(c *gin.Context) {
-	// pass token and userid in the request body
-	var req struct {
-		UserID uint
-		Token  string
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	// find that reset token info using the user id from request body, handle error if not found
-	var resetToken models.UserPasswordReset
-
-	result := initializers.DB.Where("user_id = ?", req.UserID).First(&resetToken)
-	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Reset Token not found"})
-		return
-	}
-
-	// check if the token passed and token stores matches
-	matched, err := models.CompareToken(req.Token, resetToken.Token)
-
-	if err != nil || !matched {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid Token"})
-		return
-	}
-
-	// if it matches, say your token is valid
-	c.JSON(http.StatusOK, gin.H{"message": "Your token is valid"})
-}
-
-/*
-* This method updates users password
- */
-func UpdatePassword(c *gin.Context) {
-	var req struct {
-		UserID   uint
-		Password string
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	var user models.User
-
-	result := initializers.DB.Where("id = ?", req.UserID).First(&user)
-	if result.Error != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
-		return
-	}
 	if models.CheckPasswordHash(req.Password, user.Password) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "The new password should be different"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The new password must be different from the current one"})
 		return
 	}
-	user.Password = req.Password
 
+	user.Password = req.Password
 	if err := initializers.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
-		return
-	}
-
-	var reset models.UserPasswordReset
-	if err := initializers.DB.Where("user_id = ?", req.UserID).Delete(&reset).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete verification token"})
 		return
 	}
 

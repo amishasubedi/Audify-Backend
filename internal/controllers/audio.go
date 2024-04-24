@@ -322,3 +322,40 @@ func GetUploadsById(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"audios": audioList})
 }
+
+// search audios or artist
+func GeneralSearch(c *gin.Context) {
+	query := c.Query("q")
+
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query cannot be empty"})
+		return
+	}
+
+	var audios []models.Audio
+	audioErr := initializers.DB.
+		Where("name LIKE ? ", "%"+query+"%").
+		Find(&audios).Error
+
+	if audioErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed in audios", "details": audioErr.Error()})
+		return
+	}
+
+	var artists []models.User
+	artistErr := initializers.DB.
+		Where("name LIKE ?", "%"+query+"%").
+		Find(&artists).Error
+
+	if artistErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed in artists", "details": artistErr.Error()})
+		return
+	}
+
+	results := gin.H{
+		"audios":  audios,
+		"artists": artists,
+	}
+
+	c.JSON(http.StatusOK, results)
+}

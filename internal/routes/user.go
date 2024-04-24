@@ -20,9 +20,7 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.POST("/re-verify", controllers.ReVerifyEmail)
 
 	// Password management routes
-	router.POST("/password-reset", controllers.GeneratePasswordLink)
-	router.POST("/is-valid-token", controllers.IsValidResetToken)
-	router.POST("/update-password", controllers.UpdatePassword)
+	router.PATCH("/update-password", controllers.UpdatePassword)
 
 	// profile management route
 	router.POST("/check", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateProfile)
