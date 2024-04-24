@@ -162,7 +162,7 @@ func GetPublicPlaylists(c *gin.Context) {
 		Find(&playlists).Error
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public playlists", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public playlists"})
 		return
 	}
 
@@ -170,9 +170,9 @@ func GetPublicPlaylists(c *gin.Context) {
 
 	for _, playlist := range playlists {
 		var owner models.User
-
-		if err := initializers.DB.Where("id = ?", playlist.Owner).First(&owner).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch owner details", "details": err.Error()})
+		ownerErr := initializers.DB.Where("id = ?", playlist.Owner).First(&owner).Error
+		if ownerErr != nil && ownerErr.Error() != "record not found" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch playlist data"})
 			return
 		}
 
@@ -187,7 +187,7 @@ func GetPublicPlaylists(c *gin.Context) {
 			"title":      playlist.Title,
 			"visibility": playlist.Visibility,
 			"coverurl":   playlist.CoverURL,
-			"owner_name": owner.Name,
+			"owner_name": owner.Name, // This will be empty if ownerErr is "record not found"
 			"song_count": audioCount,
 		}
 

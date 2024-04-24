@@ -13,6 +13,7 @@ type Audio struct {
 	AudioPublicID string     `gorm:"column:audio_public_id" validate:"omitempty,alphanum"`
 	CoverURL      string     `gorm:"column:cover_url" validate:"omitempty,url"`
 	CoverPublicID string     `gorm:"column:cover_public_id" validate:"omitempty,alphanum"`
+	Duration      uint       `gorm:"column:duration"`
 	Category      string     `gorm:"column:category" validate:"required"`
 	Playlists     []Playlist `gorm:"many2many:playlist_audios;"`
 }

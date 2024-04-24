@@ -28,7 +28,6 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.GET("/recommendation", middleware.IsAuthenticated, controllers.GetRecommendedUsers)
 
 	// admin
-	router.DELETE("/delete/:userId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.DeleteUser)
 	router.GET("/all-users", middleware.IsAuthenticated, middleware.IsAdmin, controllers.GetAllUsers)
 	router.GET("/contents/playlists/:userId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.GetPlaylistsByUser)
 	router.DELETE("/delete/playlist/:playlistId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.DeletePlaylistById)

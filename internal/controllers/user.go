@@ -165,7 +165,7 @@ func Signin(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := initializers.DB.Select("ID", "Password", "Email", "Name", "Verified", "AvatarURL").
+	if err := initializers.DB.Select("ID", "Password", "Email", "Name", "Verified", "AvatarURL", "IsAdmin").
 		Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not found"})
 		return
@@ -206,7 +206,7 @@ func Signin(c *gin.Context) {
 			"email":    user.Email,
 			"verified": user.Verified,
 			"avatar":   user.AvatarURL,
-			"admin":    user.IsAdmin,
+			"is_admin": user.IsAdmin,
 		},
 		"token": tokenString,
 	})
