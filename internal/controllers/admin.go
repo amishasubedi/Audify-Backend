@@ -53,3 +53,33 @@ func DeleteAudioById(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Audio successfully deleted"})
 }
+
+func DeletePlaylistById(c *gin.Context) {
+	playlistID := c.Param("playlistId")
+
+	var playlist models.Playlist
+
+	if err := initializers.DB.First(&playlist, playlistID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Audio not found"})
+		return
+	}
+
+	if err := initializers.DB.Delete(&playlist).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting playlist"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Playlist successfully deleted"})
+}
+
+func GetPlaylistsByUser(c *gin.Context) {
+	userID := c.Param("userId")
+
+	var playlists []models.Playlist
+	if err := initializers.DB.Where("owner_id = ?", userID).Find(&playlists).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playlists not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"playlists": playlists})
+}

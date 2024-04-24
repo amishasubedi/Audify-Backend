@@ -28,10 +28,9 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.GET("/recommendation", middleware.IsAuthenticated, controllers.GetRecommendedUsers)
 
 	// admin
-	router.DELETE("/delete/:userId", middleware.IsAdmin, middleware.IsAuthenticated, controllers.DeleteUser)
-	router.GET("/all-users", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetAllUsers)
-	router.GET("/contents/uploads", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetUploadsById)
-	router.GET("/contents/playlist", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetPlaylistDetailsByID)
-	router.GET("/contents/playlist/audios", middleware.IsAdmin, middleware.IsAuthenticated, controllers.GetAudiosByPlaylist)
-	router.GET("/delete/playlist/:playlistId", middleware.IsAdmin, middleware.IsAuthenticated, controllers.DeletePlaylist)
+	router.DELETE("/delete/:userId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.DeleteUser)
+	router.GET("/all-users", middleware.IsAuthenticated, middleware.IsAdmin, controllers.GetAllUsers)
+	router.GET("/contents/playlists/:userId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.GetPlaylistsByUser)
+	router.DELETE("/delete/playlist/:playlistId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.DeletePlaylistById)
+	router.DELETE("/delete/audio/:audioId", middleware.IsAuthenticated, middleware.IsAdmin, controllers.DeleteAudioById)
 }
