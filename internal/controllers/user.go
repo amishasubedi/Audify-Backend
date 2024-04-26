@@ -305,6 +305,8 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	fmt.Println("User before update", userModel.Password)
+
 	name := c.PostForm("name")
 	bio := c.PostForm("bio")
 	if name != "" || bio != "" {
@@ -351,6 +353,8 @@ func UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
 		return
 	}
+
+	fmt.Println("User after update", userModel.Password)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }
