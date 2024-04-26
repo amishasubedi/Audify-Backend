@@ -12,8 +12,8 @@ import (
 )
 
 func init() {
-	initializers.LoadEnvVariables()
-	//initializers.ConnectDatabase()
+	//initializers.LoadEnvVariables()
+	initializers.ConnectDatabase()
 }
 
 func RunMigrations() {
