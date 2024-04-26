@@ -48,14 +48,12 @@ func (user *User) Save() (*User, error) {
 }
 
 // generate encrypted password
-func (user *User) BeforeSave(tx *gorm.DB) error {
-	if tx.Statement.Changed("Password") {
-		passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-		user.Password = string(passwordHash)
+func (user *User) BeforeSave(*gorm.DB) error {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
 	}
+	user.Password = string(passwordHash)
 	return nil
 }
 

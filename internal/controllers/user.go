@@ -305,24 +305,24 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("User before update", userModel.Password)
+	updateData := map[string]interface{}{}
 
-	name := c.PostForm("name")
-	bio := c.PostForm("bio")
-	if name != "" || bio != "" {
+	if name := c.PostForm("name"); name != "" {
 		if len(name) < 3 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid name, must be at least 3 characters long"})
 			return
 		}
-		userModel.Name = name
-		userModel.Bio = bio
+		updateData["name"] = name
+	}
+
+	if bio := c.PostForm("bio"); bio != "" {
+		updateData["bio"] = bio
 	}
 
 	file, fileErr := c.FormFile("picFile")
-	if fileErr == nil {
+	if fileErr == nil && file != nil {
 		if userModel.AvatarPublicID != "" {
-			err := utils.DestroyImage(userModel.AvatarPublicID)
-			if err != nil {
+			if err := utils.DestroyImage(userModel.AvatarPublicID); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to destroy existing image"})
 				return
 			}
@@ -342,19 +342,19 @@ func UpdateProfile(c *gin.Context) {
 			return
 		}
 
-		userModel.AvatarURL = imageURL
-		userModel.AvatarPublicID = publicID
+		updateData["avatar_url"] = imageURL
+		updateData["avatar_public_id"] = publicID
 	} else if fileErr != http.ErrMissingFile {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Error retrieving file"})
 		return
 	}
 
-	if err := initializers.DB.Save(&userModel).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
-		return
+	if len(updateData) > 0 {
+		if err := initializers.DB.Model(&userModel).Updates(updateData).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profile"})
+			return
+		}
 	}
-
-	fmt.Println("User after update", userModel.Password)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }

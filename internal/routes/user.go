@@ -23,7 +23,7 @@ func SetUserRoutes(router *gin.RouterGroup) {
 	router.PATCH("/update-password", controllers.UpdatePassword)
 
 	// profile management route
-	router.POST("/check", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateProfile)
+	router.PATCH("/check", middleware.IsAuthenticated, middleware.FileParserMiddleware(), controllers.UpdateProfile)
 
 	router.GET("/recommendation", middleware.IsAuthenticated, controllers.GetRecommendedUsers)
 
