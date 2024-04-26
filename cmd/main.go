@@ -40,6 +40,10 @@ func main() {
 	router.Use(middleware.EnableCors())
 	router.Use(middleware.ErrorHandlingMiddleware())
 
+	// Serve React static files
+	router.StaticFile("/", "../../frontend/build/index.html")
+	router.Static("/static", "./frontend/build/static")
+
 	if os.Getenv("RUN_MIGRATIONS") == "true" {
 		RunMigrations()
 	}
