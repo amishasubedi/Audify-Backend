@@ -151,12 +151,24 @@ func GetPlaylistDetailsByID(c *gin.Context) {
 
 // Query public playlists not owned by the current user that have at least one song
 func GetPublicPlaylists(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	userModel, ok := user.(*models.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User casting error"})
+		return
+	}
+
 	var playlists []models.Playlist
 
 	err := initializers.DB.
 		Joins("JOIN playlist_audios ON playlist_audios.playlist_id = playlists.id").
 		Joins("JOIN audios ON audios.id = playlist_audios.audio_id AND audios.deleted_at IS NULL").
-		Where("playlists.visibility = 'public'").
+		Where("playlists.visibility = 'public' AND playlists.owner_id <> ?", userModel.ID).
 		Group("playlists.id").
 		Having("COUNT(audios.id) > 0").
 		Find(&playlists).Error
@@ -187,7 +199,7 @@ func GetPublicPlaylists(c *gin.Context) {
 			"title":      playlist.Title,
 			"visibility": playlist.Visibility,
 			"coverurl":   playlist.CoverURL,
-			"owner_name": owner.Name, // This will be empty if ownerErr is "record not found"
+			"owner_name": owner.Name,
 			"song_count": audioCount,
 		}
 
