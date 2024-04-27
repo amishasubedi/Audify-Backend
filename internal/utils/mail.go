@@ -15,10 +15,10 @@ type Profile struct {
 
 func generateMailDialer() *gomail.Dialer {
 	return gomail.NewDialer(
-		"sandbox.smtp.mailtrap.io",
-		2525,
-		os.Getenv("MAILTRAP_USER"),
-		os.Getenv("MAILTRAP_PASS"),
+		"smtp.sendgrid.net",
+		587,
+		"apikey",
+		os.Getenv("SENDGRID_API_KEY"),
 	)
 }
 
@@ -29,7 +29,7 @@ func SendVerificationMail(token string, profile Profile) error {
 	d := generateMailDialer()
 	m := gomail.NewMessage()
 
-	m.SetHeader("From", "auth@myapp.com")
+	m.SetHeader("From", "email@audify.life")
 	m.SetHeader("To", profile.Email)
 	m.SetHeader("Subject", "Welcome to MyApp")
 
@@ -57,7 +57,7 @@ func SendForgetPasswordLink(option Option) {
 	d := generateMailDialer()
 	m := gomail.NewMessage()
 
-	m.SetHeader("From", "auth@myapp.com")
+	m.SetHeader("From", "email@audify.com")
 	m.SetHeader("To", option.Email)
 	m.SetHeader("Subject", "Reset Password Link")
 
