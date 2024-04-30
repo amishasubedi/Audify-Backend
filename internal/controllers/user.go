@@ -378,7 +378,7 @@ func GetRecommendedUsers(c *gin.Context) {
 		Joins("JOIN audios ON audios.owner = users.id").
 		Where("users.id != ?", userModel.ID).
 		Group("users.id").
-		Having("count(audios.id) >= ?", 3).
+		Having("count(audios.id) >= ?", 1).
 		Find(&users)
 
 	if result.Error != nil {

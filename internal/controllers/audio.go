@@ -332,16 +332,6 @@ func GeneralSearch(c *gin.Context) {
 		return
 	}
 
-	var audios []models.Audio
-	audioErr := initializers.DB.
-		Where("name LIKE ? ", "%"+query+"%").
-		Find(&audios).Error
-
-	if audioErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed in audios", "details": audioErr.Error()})
-		return
-	}
-
 	var artists []models.User
 	artistErr := initializers.DB.
 		Where("name LIKE ?", "%"+query+"%").
@@ -353,7 +343,6 @@ func GeneralSearch(c *gin.Context) {
 	}
 
 	results := gin.H{
-		"audios":  audios,
 		"artists": artists,
 	}
 
