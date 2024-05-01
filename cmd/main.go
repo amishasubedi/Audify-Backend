@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	//initializers.LoadEnvVariables()
+	initializers.LoadEnvVariables()
 	initializers.ConnectDatabase()
 }
 
@@ -40,9 +40,9 @@ func main() {
 	router.Use(middleware.EnableCors())
 	router.Use(middleware.ErrorHandlingMiddleware())
 
-	// Serve React static files
 	router.StaticFile("/", "../../frontend/build/index.html")
 	router.Static("/static", "./frontend/build/static")
+	router.Static("/public", "../internal/utils/public")
 
 	if os.Getenv("RUN_MIGRATIONS") == "true" {
 		RunMigrations()
