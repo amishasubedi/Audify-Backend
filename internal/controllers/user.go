@@ -34,6 +34,12 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
+	existingUser := models.User{}
+	if err := initializers.DB.Where("email = ?", newUser.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "This email is already registered"})
+		return
+	}
+
 	if validationErr := Validate.Struct(newUser); validationErr != nil {
 		c.Error(validationErr)
 		return
